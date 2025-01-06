@@ -1,6 +1,6 @@
 {
   "name": "@octamap/mesa",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "Build-time HTML component engine",
   "type": "module",
   "private": false,
@@ -21,6 +21,9 @@
     "type": "git",
     "url": "https://github.com/octamap/mesa.git"
   },
+  "files": [
+    "dist/*"
+  ],
   "author": "",
   "license": "ISC",
   "peerDependencies": {},
