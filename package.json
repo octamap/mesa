@@ -1,7 +1,7 @@
 {
   "name": "@octamap/mesa",
   "version": "1.0.0",
-  "description": "",
+  "description": "Build-time HTML component engine",
   "type": "module",
   "private": false,
   "scripts": {
