@@ -228,11 +228,11 @@ Update your `vite.config.ts`:
 
 ```typescript
 import { defineConfig } from 'vite';
-import { BuildTimeComponents } from '@octamap/mesa';
+import { Mesa } from '@octamap/mesa';
 
 export default defineConfig({
   plugins: [
-    BuildTimeComponents({
+    Mesa({
         'my-custom-button': './src/components/my-custom-button.html',
         'my-card': './src/components/my-card.html'
     })
@@ -312,12 +312,12 @@ Import your component configuration into `vite.config.ts`:
 ### 📄 **vite.config.ts**
 ```typescript
 import { defineConfig } from 'vite';
-import { BuildTimeComponents } from '@octamap/mesa';
+import { Mesa } from '@octamap/mesa';
 import { OctamapHtmlComponents } from './components';
 
 export default defineConfig({
   plugins: [
-    BuildTimeComponents(OctamapHtmlComponents)
+    Mesa(OctamapHtmlComponents)
   ]
 });
 ```
