@@ -216,6 +216,15 @@ Mesa recursively processes inner components during the build phase.
 
 # 📚 **Getting Started**
 
+## 🚀 New Project
+Setup a new mesa project by running the command below, this sets you up with a sample website:
+
+```
+npx @octamap/create-mesa@latest project-name
+```
+
+## 🤖 Add to existing project 
+
 ### 1️⃣ **Install Mesa**
 ```bash
 npm install @octamap/mesa --save-dev
@@ -338,6 +347,7 @@ This approach keeps your `vite.config.ts` **clean and focused** while centralizi
 ✅ **Clear Separation:** `vite.config.ts` remains focused on build configuration.
 
 ---
+
 
 ### 📦 **Example Folder Structure**
 
