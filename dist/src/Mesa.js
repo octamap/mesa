@@ -6,13 +6,13 @@ import getHtmlFiles from './methods/getHtmlFiles.js';
 // Plugin definition
 export default function Mesa(components) {
     let cssSplit = splitHtmlAndCssFromComponents(components);
-    const VIRTUAL_CSS_ID = 'virtual:processed-css.css';
+    const VIRTUAL_CSS_ID = 'virtual:mesa.css';
     const RESOLVED_VIRTUAL_CSS_ID = '\0' + VIRTUAL_CSS_ID;
     let viteConfig;
     let lastCssContent;
     let stylesUsedByMain = {};
     return {
-        name: 'build-time-components',
+        name: 'mesa',
         configResolved(resolvedConfig) {
             viteConfig = resolvedConfig;
         },
@@ -121,22 +121,119 @@ export default function Mesa(components) {
                     return source.type == "absolute" ? source.path : undefined;
                 }
             }).filter(x => x != undefined);
+            // Watch the component + HTML files, same as in your snippet.
             const htmlFiles = getHtmlFiles(process.cwd(), ['node_modules', '.git', 'dist']);
             const watchedFiles = [...componentFiles, ...htmlFiles];
+            const rootDir = viteConfig.root || process.cwd();
+            const customIndexPath = viteConfig.build?.rollupOptions?.input || 'index.html';
+            const indexHtmlPath = path.resolve(rootDir, typeof customIndexPath == "string" ? customIndexPath : "index.html");
             watchedFiles.forEach((file) => {
                 server.watcher.add(file);
             });
+            // --- The key middleware: transform any requested .html file (except the index) on the fly ---
+            server.middlewares.use(async (req, res, next) => {
+                if (req.method !== 'GET' || !req.url?.endsWith('.html')) {
+                    return next();
+                }
+                try {
+                    // Create a PassThrough stream to intercept the response
+                    const originalWrite = res.write;
+                    const originalEnd = res.end;
+                    const originalWriteHead = res.writeHead.bind(res);
+                    const chunks = [];
+                    res.write = function (chunk) {
+                        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+                        return true; // Indicate the write was successful
+                    };
+                    res.writeHead = function (statusCode, statusMessage, headers) {
+                        res.removeHeader('Content-Length');
+                        res.setHeader('Transfer-Encoding', 'chunked');
+                        return originalWriteHead(statusCode, statusMessage, headers);
+                    };
+                    res.end = function (chunk, encoding, callback) {
+                        if (chunk) {
+                            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+                        }
+                        const body = Buffer.concat(chunks).toString('utf-8'); // Combine all chunks into a string
+                        (async () => {
+                            try {
+                                const { componentsWithoutStyle, styles } = await cssSplit;
+                                let transformedHtml = await processHtml(body, componentsWithoutStyle);
+                                // Inject styles for components not included in the main entry
+                                const usedTags = getAllTagNames(transformedHtml);
+                                const importedStyles = Object.keys(stylesUsedByMain);
+                                const unImportedStyles = Object.keys(styles).filter((tag) => !importedStyles.includes(tag));
+                                const styleOfComponentsToImport = usedTags.filter((tag) => unImportedStyles.includes(tag));
+                                if (styleOfComponentsToImport.length > 0) {
+                                    const stylesToInject = styleOfComponentsToImport
+                                        .map((tag) => styles[tag])
+                                        .join('\n');
+                                    transformedHtml = `<style>${stylesToInject}</style>\n${transformedHtml}`;
+                                }
+                                // Set headers and send the transformed response
+                                if (!res.headersSent) {
+                                    res.setHeader('Content-Type', 'text/html');
+                                }
+                                originalWrite.call(res, transformedHtml, encoding, callback);
+                                originalEnd.call(res, callback, encoding);
+                            }
+                            catch (err) {
+                                console.error(`Failed to transform ${req.url}`, err);
+                                if (!res.headersSent) {
+                                    res.setHeader('Content-Type', 'text/html');
+                                }
+                                // Fallback to the original unprocessed response
+                                originalWrite.call(res, body, encoding, callback);
+                                originalEnd.call(res, callback, encoding);
+                            }
+                        })();
+                        return res;
+                    };
+                    next();
+                }
+                catch (err) {
+                    console.error(`Error processing HTML for ${req.url}`, err);
+                    next();
+                }
+            });
+            // Watch for changes -> reload, as you already do in your snippet
             server.watcher.on('change', async (file) => {
-                if (watchedFiles.includes(file)) {
-                    if (componentFiles.includes(file)) {
-                        const newCssSplit = splitHtmlAndCssFromComponents(components);
-                        cssSplit = newCssSplit;
-                        lastCssContent = Object.values(await newCssSplit.then(x => x.styles)).join("\n");
-                    }
-                    console.log(`[vite-plugin-inline-html-components] Detected change in ${file}. Reloading page...`);
+                const isComponentFile = componentFiles.includes(file);
+                const isHtmlFile = htmlFiles.includes(file);
+                console.log(`[vite-plugin-mesa] Detected change in ${file}`);
+                if (isComponentFile) {
+                    // Update CSS split and cached content
+                    cssSplit = splitHtmlAndCssFromComponents(components);
+                    lastCssContent = Object.values(await cssSplit.then(x => x.styles)).join("\n");
+                    console.log(`[vite-plugin-mesa] Component updated: ${file}`);
+                    // Notify the browser to update styles via HMR
+                    server.ws.send({
+                        type: 'update',
+                        updates: [{
+                                type: 'css-update',
+                                path: `/${VIRTUAL_CSS_ID}`,
+                                acceptedPath: `/${VIRTUAL_CSS_ID}`,
+                                timestamp: Date.now(),
+                                explicitImportRequired: false,
+                                isWithinCircularImport: false,
+                            }]
+                    });
+                }
+                else if (isHtmlFile) {
+                    // Only reload the specific HTML file that changed
+                    const relativePath = path.relative(viteConfig.root, file);
+                    console.log(`[vite-plugin-mesa] HTML file updated: ${relativePath}`);
                     server.ws.send({
                         type: 'full-reload',
-                        path: '*',
+                        path: '*'
+                    });
+                }
+                else {
+                    // Default fallback: full reload for other changes
+                    console.log(`[vite-plugin-mesa] Unknown change, performing full reload.`);
+                    server.ws.send({
+                        type: 'full-reload',
+                        path: '*'
                     });
                 }
             });

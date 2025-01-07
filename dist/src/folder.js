@@ -1,5 +1,7 @@
 import path from 'path';
 import fs from 'fs';
+import getAllChildrenOfFolder from './helpers/getAllChildrenOfFolder.js';
+import { createNamesForPaths } from './helpers/createNamesForPaths.js';
 function resolvePath(callerPath, relativePath) {
     let callerDir;
     // Handle file URLs
@@ -44,21 +46,38 @@ function getCallerFile() {
     return callerFile || 'unknown';
 }
 /**
- * Example component function
- * @param relativePath Path relative to the caller file
+ * Create component for all files of a folder
+ * @param relativePath Path relative to the folder
  */
-export default function component(relativePath) {
+export default function folder(relativePath) {
     const callerPath = getCallerFile();
     if (!callerPath) {
         throw new Error('Unable to determine caller path');
     }
     const absolutePath = resolvePath(callerPath, relativePath);
-    if (fs.existsSync(absolutePath)) {
-        const content = fs.readFileSync(absolutePath, 'utf-8');
-        return {
+    // Get the path to all the children in absolute path, not just direct children but all
+    const allChildren = getAllChildrenOfFolder(absolutePath);
+    if (allChildren.length == 0) {
+        console.warn("[ MESA ] - Did not find any files in " + relativePath);
+        return {};
+    }
+    // All children with relative path
+    const relativeOfAllChildren = allChildren.map(childPath => path.relative(absolutePath, childPath));
+    console.log(relativeOfAllChildren);
+    // Map to components
+    const namedPaths = createNamesForPaths(relativeOfAllChildren);
+    console.log("named paths", namedPaths);
+    // Convert to absolute paths
+    const components = {};
+    for (const [name, relativePath] of Object.entries(namedPaths)) {
+        components[name] = {
             type: "absolute",
-            path: absolutePath
+            path: path.resolve(absolutePath, relativePath)
         };
+    }
+    console.log("components", components);
+    if (fs.existsSync(absolutePath)) {
+        return components;
     }
     else {
         throw new Error("File does not exist: " + absolutePath);

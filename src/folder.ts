@@ -1,8 +1,11 @@
 import path from 'path';
 import fs from 'fs';
 import ComponentSource from './types/ComponentSource.js';
+import getAllChildrenOfFolder from './helpers/getAllChildrenOfFolder.js';
+import { createNamesForPaths } from './helpers/createNamesForPaths.js';
+import ComponentsMap from './types/ComponentsMap.js';
 
-function resolvePath(callerPath: string , relativePath: string) {
+function resolvePath(callerPath: string, relativePath: string) {
     let callerDir;
 
     // Handle file URLs
@@ -11,7 +14,7 @@ function resolvePath(callerPath: string , relativePath: string) {
 
         // Remove leading slash on Windows
         if (process.platform === 'win32' && callerDir.startsWith('/')) {
-            callerDir = callerDir.substring(1); 
+            callerDir = callerDir.substring(1);
         }
     } else {
         // For normal file paths
@@ -51,21 +54,45 @@ function getCallerFile(): string {
 }
 
 /**
- * Example component function
- * @param relativePath Path relative to the caller file
+ * Create component for all files of a folder 
+ * @param relativePath Path relative to the folder 
  */
-export default function component(relativePath: string) : ComponentSource  {
+export default function folder(relativePath: string): ComponentsMap {
     const callerPath = getCallerFile();
     if (!callerPath) {
         throw new Error('Unable to determine caller path');
     }
-    const absolutePath = resolvePath(callerPath, relativePath) 
-    if (fs.existsSync(absolutePath)) {
-        const content = fs.readFileSync(absolutePath, 'utf-8');
-        return {
+    const absolutePath = resolvePath(callerPath, relativePath)
+
+    // Get the path to all the children in absolute path, not just direct children but all
+    const allChildren = getAllChildrenOfFolder(absolutePath)
+    if (allChildren.length == 0) {
+        console.warn("[ MESA ] - Did not find any files in " + relativePath)
+        return {}
+    }
+
+    // All children with relative path
+    const relativeOfAllChildren = allChildren.map(childPath =>
+        path.relative(absolutePath, childPath)
+    );
+    console.log(relativeOfAllChildren)
+
+    // Map to components
+    const namedPaths = createNamesForPaths(relativeOfAllChildren)
+    console.log("named paths", namedPaths)
+
+    // Convert to absolute paths
+    const components: Record<string, ComponentSource> = {}
+    for (const [name, relativePath] of Object.entries(namedPaths)) {
+        components[name] = {
             type: "absolute",
-            path: absolutePath
+            path: path.resolve(absolutePath, relativePath)
         }
+    }
+    console.log("components", components)
+
+    if (fs.existsSync(absolutePath)) {
+        return  components
     } else {
         throw new Error("File does not exist: " + absolutePath)
     }
