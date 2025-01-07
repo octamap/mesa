@@ -18,6 +18,8 @@ function encodeSyntax(html: string) {
 export default async function processHtml(html: string, components: ComponentsMap): Promise<string> {
     const tagNames = Object.keys(components)
     const uncompiledElements = findElementsWithTags(tagNames, html)
+
+    const original = html
     if (uncompiledElements.length == 0) return html
     
     // Compile the new elements
@@ -85,9 +87,9 @@ export default async function processHtml(html: string, components: ComponentsMa
     }))
 
     // Replace the old elements with the compiled 
-    const indicies = Array.from({length: uncompiledElements.length}, (_, index) => index)
+    const indicies = Array.from({ length: uncompiledElements.length }, (_, index) => index)
     for (const index of indicies.reverse()) {
-        const {from, to} = uncompiledElements[index]
+        const { from, to } = uncompiledElements[index]
         html = html.slice(0, from) + compiledContents[index] + html.slice(to)
     }
     return html

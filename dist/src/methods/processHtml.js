@@ -14,6 +14,7 @@ function encodeSyntax(html) {
 export default async function processHtml(html, components) {
     const tagNames = Object.keys(components);
     const uncompiledElements = findElementsWithTags(tagNames, html);
+    const original = html;
     if (uncompiledElements.length == 0)
         return html;
     // Compile the new elements

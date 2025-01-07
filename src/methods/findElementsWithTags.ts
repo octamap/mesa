@@ -73,6 +73,20 @@ export default function findElementsWithTags(
         }
     }
 
-    // Sort the results by their starting index to maintain source order
-    return results.sort((a, b) => a.from - b.from);
+    // Sort by starting index
+    results.sort((a, b) => a.from - b.from);
+
+    // Remove nested elements
+    const filteredResults: FoundElement[] = [];
+    let currentParent: FoundElement | null = null;
+
+    for (const element of results) {
+        if (!currentParent || element.from > currentParent.to) {
+            // Not nested, add to results
+            filteredResults.push(element);
+            currentParent = element;
+        }
+    }
+
+    return filteredResults;
 }

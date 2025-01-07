@@ -1,6 +1,6 @@
 {
   "name": "@octamap/mesa",
-  "version": "1.0.5",
+  "version": "1.0.8",
   "description": "Build-time HTML component engine",
   "type": "module",
   "private": false,
@@ -27,10 +27,12 @@
   "author": "",
   "license": "ISC",
   "peerDependencies": {},
+  "dependencies": {
+      "jsdom": "^25.0.1"
+  },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
     "@types/node": "^20.2.1",
-    "jsdom": "^25.0.1",
     "path": "^0.12.7",
     "tsconfig": "*",
     "tslib": "^2.6.2",
