@@ -56,7 +56,6 @@ In your main HTML file, simply use the `<my-custom-button>` tag:
 <html lang="en">
 <head>
     <link rel="stylesheet" href="component-styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body>
     <h1>Welcome to Mesa</h1>
@@ -77,7 +76,6 @@ Mesa compiles the above into:
 <html lang="en">
 <head>
     <link rel="stylesheet" href="component-styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
 </head>
 <body>
     <h1>Welcome to Mesa</h1>
