@@ -132,7 +132,7 @@ If your component has an element marked as `#default`, props are mapped automati
 **my-input.html**
 ```html
 <div>
-    <input #default class="input-field" />
+    <input #default class="input-field" /> 
 </div>
 ```
 
@@ -355,16 +355,199 @@ This approach keeps your `vite.config.ts` **clean and focused** while centralizi
 vite.config.ts        <-- Reference the mappings
 ```
 
----
+## 📂 **Register Entire Folders of Components with `folder`**
 
-### 🚀 **Next Steps**
-- ✅ Add new components to your `components.ts`.  
-- ✅ Import and use them in your `vite.config.ts`.  
-- ✅ Build and enjoy **clean, efficient, and reusable component configurations**.
+### 🚀 **Simplify Component Registration with `folder`**
 
-This setup is perfect for **large-scale applications** or **shared component libraries**.  
+Mesa now supports **bulk registration** of `.html` or `.svg` components from an entire folder using the `folder` function. This makes it incredibly easy to manage and include multiple components without manually defining each one in your configuration.
 
 ---
+
+### 🛠️ **1. Folder-Based Component Registration**
+
+You can register all `.html` and `.svg` components in a folder using the `folder` utility:
+
+**vite.config.ts**
+```typescript
+import { defineConfig } from 'vite';
+import { Mesa, folder } from '@octamap/mesa';
+import { OctamapHtmlComponents } from './components';
+
+export default defineConfig({
+  plugins: [
+    Mesa({
+      ...OctamapHtmlComponents,
+      ...folder("./icons") // Registers all components in the ./icons folder
+    }),
+  ],
+});
+```
+
+✅ The `folder` function scans the `./icons` directory and registers all `.html` and `.svg` files as components.  
+✅ Nested folders are supported, and components are named based on their folder structure.
+
+---
+
+### 📂 **2. Folder Structure Example**
+
+Your project might have a folder structure like this:
+
+```
+/icons
+  letter-notification.svg
+  /another-folder
+    profile-icon.svg
+```
+
+---
+
+### 📄 **3. Use Registered Components in HTML**
+
+After registering the folder, you can use the components directly in your HTML:
+
+**index.html**
+```html
+<div>
+    <div class="check-inbox-page">
+        <letter-notification height="60px"></letter-notification>
+        <another-folder-profile-icon></another-folder-profile-icon>
+    </div>
+</div>
+```
+
+✅ **Automatic Naming:**  
+- `letter-notification.svg` → `<letter-notification>`  
+- `another-folder/profile-icon.svg` → `<another-folder-profile-icon>`  
+
+✅ **Scoped Naming:** Nested folder structures are preserved in the component names to avoid conflicts.
+
+---
+
+### 🧠 **How it Works**
+1. The `folder` function scans the specified directory.
+2. Each `.html` and `.svg` file is registered as a Mesa component.
+3. Nested files are automatically prefixed with their folder names.
+
+**Example Naming Convention:**  
+- `icons/alert.svg` → `<alert>`  
+- `icons/notifications/alert.svg` → `<notifications-alert>`  
+
+This ensures unique and collision-free component names.
+
+With `folder`, managing and scaling your components becomes effortless. Say goodbye to repetitive mappings and enjoy clean, intuitive configurations. 🚀✨
+
+---
+
+Here's an illustrative section explaining how Mesa handles **scoped styles for components** and ensures they are appropriately applied regardless of where the component is used:
+
+---
+
+## 📦 **Scoped Styles Across Different Usage Scenarios**
+
+Mesa ensures **scoped styles** are applied consistently across your components, whether they're used in a **single page** or **multiple pages**.
+
+### 📄 **1. Component Definition**
+
+First, define your reusable component with its styles.
+
+**📂 letter-notification.svg**
+```html
+<svg>
+  ..
+</svg>
+```
+
+**📂 check-inbox.html**
+```html
+<div>
+    <div class="check-inbox-page">
+        <letter-notification height="60px"></letter-notification>
+    </div>
+</div>
+
+<style>
+.check-inbox-page {
+    height: 100px;
+    width: 200px;
+}
+</style>
+```
+
+---
+
+### 📄 **2. Using the Component in `index.html`**
+
+When the component is used in a dedicated page, Mesa extracts and consolidates its styles into a global stylesheet (`component-styles.css`).
+
+**📂 index.html**
+```html
+<body>
+    <check-inbox></check-inbox>
+</body>
+```
+
+**🔄 Build Output:**
+```html
+<head>
+    <link rel="stylesheet" href="/component-styles.css">
+</head>
+<body>
+    <div class="check-inbox-page">
+        <svg> .. </svg>
+    </div>
+</body>
+```
+
+**📂 component-styles.css**
+```css
+.check-inbox-page {
+    height: 100px;
+    width: 200px;
+}
+```
+
+✅ **Global styles ensure optimized loading** for dedicated pages.
+
+---
+
+### 📄 **3. Using the Component in Another Page (`some-page.html`)**
+
+When the same component is used **outside of its primary context** (e.g., `some-page.html`), Mesa intelligently inlines the required styles to prevent missing styles or dependency on global CSS.
+
+**📂 some-page.html**
+```html
+<div>
+    <check-inbox></check-inbox>
+</div>
+```
+
+**🔄 Build Output:**
+```html
+<div>
+    <style>
+        .check-inbox-page {
+            height: 100px;
+            width: 200px;
+        }
+    </style>
+    <div class="check-inbox-page">
+        <svg> .. </svg>
+    </div>
+</div>
+```
+
+✅ **Inline styles guarantee isolation** and ensure the component renders consistently even without global styles.
+
+---
+
+### 🧠 **How Mesa Manages Scoped Styles:**
+
+1. **Global Styles:** For components used consistently across an entire page, styles are extracted into `component-styles.css`.
+2. **Inline Styles:** When components are used in isolated contexts or ad-hoc pages, Mesa inlines the necessary styles directly.
+
+✅ **No CSS leakage across components.**  
+✅ **Optimal performance with minimal style duplication.**  
+✅ **Scoped styles ensure predictable rendering.**
 
 # 📖 **Documentation & Examples**
 

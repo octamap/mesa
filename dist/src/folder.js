@@ -75,7 +75,6 @@ export default function folder(relativePath) {
             path: path.resolve(absolutePath, relativePath)
         };
     }
-    console.log("components", components);
     if (fs.existsSync(absolutePath)) {
         return components;
     }

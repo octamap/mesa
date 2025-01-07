@@ -2,10 +2,13 @@
 export default function splitHtmlAndCss(input: string): [string, string | null] {
     try {
         if (!input.includes("<style>")) return [input, null]
+
         // Regular expression to match <style> blocks, including multiline content
         const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+
         let cssParts: string[] = [];
         let match: RegExpExecArray | null;
+
 
         // Extract all CSS content from <style> tags
         while ((match = styleRegex.exec(input)) !== null) {

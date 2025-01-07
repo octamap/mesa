@@ -89,8 +89,6 @@ export default function folder(relativePath: string): ComponentsMap {
             path: path.resolve(absolutePath, relativePath)
         }
     }
-    console.log("components", components)
-
     if (fs.existsSync(absolutePath)) {
         return  components
     } else {

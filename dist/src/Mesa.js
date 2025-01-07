@@ -2,6 +2,7 @@ import path from 'path';
 import processHtml from './methods/processHtml.js';
 import splitHtmlAndCssFromComponents from './methods/splitHtmlAndCssFromComponents.js';
 import getAllTagNames from './methods/getAllTagNames.js';
+import fs from "fs";
 import getHtmlFiles from './methods/getHtmlFiles.js';
 // Plugin definition
 export default function Mesa(components) {
@@ -100,6 +101,47 @@ export default function Mesa(components) {
                 }
                 // Check for html files other than index.html were we need to inject styles that have not been imported yet
             },
+        },
+        async closeBundle() {
+            console.log('🔄 Post-processing build output...');
+            const distDir = viteConfig.build?.outDir || 'dist'; // Default Vite output directory
+            // Ensure output folder exists
+            if (!fs.existsSync(distDir)) {
+                console.warn('⚠️ Build directory does not exist. Skipping post-processing.');
+                return;
+            }
+            const { componentsWithoutStyle, styles } = await cssSplit;
+            const importedStyles = Object.keys(stylesUsedByMain);
+            const unImportedStyles = Object.keys(styles).filter(x => !importedStyles.includes(x));
+            const processHtmlFiles = async (dir) => {
+                const children = fs.readdirSync(dir);
+                await Promise.all(children.map(async (file) => {
+                    const filePath = path.join(dir, file);
+                    if (fs.statSync(filePath).isDirectory()) {
+                        processHtmlFiles(filePath); // Recursively process subdirectories
+                    }
+                    else if (filePath.endsWith('.html')) {
+                        let html = fs.readFileSync(filePath, 'utf-8');
+                        console.log(`🔧 Processing HTML file: ${filePath}`);
+                        // Find tag names not used by main entry 
+                        const styleOfComponentsToImport = getAllTagNames(html).filter(x => unImportedStyles.includes(x));
+                        html = await processHtml(html, componentsWithoutStyle);
+                        // Add a style element at the top that contains the styles
+                        if (styleOfComponentsToImport.length > 0) {
+                            const stylesToImport = [];
+                            for (const tag of styleOfComponentsToImport) {
+                                stylesToImport.push(styles[tag]);
+                            }
+                            const style = `<style>${stylesToImport.join("\n")}</style>`;
+                            html = style + "\n" + html;
+                        }
+                        fs.writeFileSync(filePath, html);
+                    }
+                }));
+            };
+            // Start processing
+            await processHtmlFiles(distDir);
+            console.log('✅ Build output post-processing completed!');
         },
         async configureServer(server) {
             if (lastCssContent == undefined) {
