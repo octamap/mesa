@@ -546,9 +546,6 @@ When the same component is used **outside of its primary context** (e.g., `some-
 
 ✅ **Inline styles guarantee isolation** and ensure the component renders consistently even without global styles.
 
-
-Here's an **illustration-ready version** of your complex scenario with improved clarity and formatting for your README:
-
 ---
 
 # 📚 **Advanced Example: Multi-Package Integration with Mesa**
