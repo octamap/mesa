@@ -1,6 +1,6 @@
 {
   "name": "@octamap/mesa",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "description": "Build-time HTML component engine",
   "type": "module",
   "private": false,
@@ -11,8 +11,7 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "default": "./index.ts"
+      "import": "./dist/index.js"
     }
   },
   "main": "dist/index.js",
@@ -28,7 +27,7 @@
   "license": "ISC",
   "peerDependencies": {},
   "dependencies": {
-      "jsdom": "^25.0.1"
+    "jsdom": "^25.0.1"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",
