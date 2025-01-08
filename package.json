@@ -1,6 +1,6 @@
 {
   "name": "@octamap/mesa",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "description": "Build-time HTML component engine",
   "type": "module",
   "private": false,
@@ -10,9 +10,9 @@
   },
   "exports": {
     ".": {
-      "default": "./index.ts",
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./index.ts"
     }
   },
   "main": "dist/index.js",
