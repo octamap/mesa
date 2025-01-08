@@ -15,24 +15,34 @@ function encodeSyntax(html: string) {
 }
 
 // Processes HTML with provided components
-export default async function processHtml(html: string, components: ComponentsMap): Promise<string> {
+export default async function processHtml(html: string, components: ComponentsMap): Promise<{ html: string, componentsUsed: string[] }> {
     const tagNames = Object.keys(components)
     const uncompiledElements = findElementsWithTags(tagNames, html)
 
-    const original = html
-    if (uncompiledElements.length == 0) return html
-    
+    if (uncompiledElements.length == 0) return { html, componentsUsed: [] }
+    const allComponentsUsed: string[] = []
+
     // Compile the new elements
     const compiledContents = await Promise.all(uncompiledElements.map(async uncompiledElement => {
         // Find the html of the component
         const source = components[uncompiledElement.tag];
         let compiledContent = await getHtmForSource(source).then(x => x!)
 
+        // Process the html of the component (in case the component is using a component)
+        // We exclude the current tag to prevent infinite loops in case the component references itself
+        const componentsExcludingCurrent = { ...components }
+        delete componentsExcludingCurrent[uncompiledElement.tag]
+        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent)
+        compiledContent = processedComponentHtml
+        allComponentsUsed.push(...componentsUsed)
+        allComponentsUsed.push(uncompiledElement.tag)
+
         // Process the html
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to)
         const innerHtml = getInnerHTML(uncompiledContent)
         if (innerHtml) {
-            const processedInnerHtml = await processHtml(innerHtml, components)
+            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components)
+            allComponentsUsed.push(...componentsUsed)
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml)
         }
 
@@ -53,7 +63,7 @@ export default async function processHtml(html: string, components: ComponentsMa
                 if (compiledElement) {
                     // Remove unless we have default attributes on the parent to apply later
                     if (!(element.tagName == "default" && defaultAttributes.length > 0)) {
-                        compiledElement.removeAttribute(`#${element.tagName}`)   
+                        compiledElement.removeAttribute(`#${element.tagName}`)
                     }
                     for (const attribute of element.attributes) {
                         compiledElement.setAttribute(attribute.name, attribute.value);
@@ -92,5 +102,5 @@ export default async function processHtml(html: string, components: ComponentsMa
         const { from, to } = uncompiledElements[index]
         html = html.slice(0, from) + compiledContents[index] + html.slice(to)
     }
-    return html
+    return { html: html, componentsUsed: allComponentsUsed }
 }

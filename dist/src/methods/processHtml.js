@@ -14,19 +14,28 @@ function encodeSyntax(html) {
 export default async function processHtml(html, components) {
     const tagNames = Object.keys(components);
     const uncompiledElements = findElementsWithTags(tagNames, html);
-    const original = html;
     if (uncompiledElements.length == 0)
-        return html;
+        return { html, componentsUsed: [] };
+    const allComponentsUsed = [];
     // Compile the new elements
     const compiledContents = await Promise.all(uncompiledElements.map(async (uncompiledElement) => {
         // Find the html of the component
         const source = components[uncompiledElement.tag];
         let compiledContent = await getHtmForSource(source).then(x => x);
+        // Process the html of the component (in case the component is using a component)
+        // We exclude the current tag to prevent infinite loops in case the component references itself
+        const componentsExcludingCurrent = { ...components };
+        delete componentsExcludingCurrent[uncompiledElement.tag];
+        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent);
+        compiledContent = processedComponentHtml;
+        allComponentsUsed.push(...componentsUsed);
+        allComponentsUsed.push(uncompiledElement.tag);
         // Process the html
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to);
         const innerHtml = getInnerHTML(uncompiledContent);
         if (innerHtml) {
-            const processedInnerHtml = await processHtml(innerHtml, components);
+            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components);
+            allComponentsUsed.push(...componentsUsed);
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml);
         }
         // Apply the attributes set on the uncompiled content to the component html
@@ -82,5 +91,5 @@ export default async function processHtml(html, components) {
         const { from, to } = uncompiledElements[index];
         html = html.slice(0, from) + compiledContents[index] + html.slice(to);
     }
-    return html;
+    return { html: html, componentsUsed: allComponentsUsed };
 }

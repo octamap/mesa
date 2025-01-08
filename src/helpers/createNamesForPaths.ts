@@ -1,5 +1,6 @@
 
 import path from 'path';
+import toKebabCase from './toKebabCase.js';
 
 /**
  * Convert "/svg/profile.svg" => "svg-profile"
@@ -10,7 +11,7 @@ function slugify(filePath: string): string {
     let cleanPath = filePath.replace(/^\/+/, ''); // "svg/profile.svg" or "check-inbox.html"
 
     // 2. Split into parts
-    const parts = cleanPath.split('/'); // ["svg", "profile.svg"] or ["check-inbox.html"]
+    const parts = cleanPath.split('/').map(x => toKebabCase(x)); // ["svg", "profile.svg"] or ["check-inbox.html"]
 
     // 3. Remove extension from the last part
     const file = parts.pop() || '';
@@ -32,13 +33,6 @@ function slugify(filePath: string): string {
  *   "check-inbox": "/check-inbox.html"
  * }
  */
-export function createNamesForPaths(paths: string[]): Record<string, string> {
-    const result: Record<string, string> = {};
-
-    for (const filePath of paths) {
-        const key = slugify(filePath);
-        result[key] = filePath;
-    }
-
-    return result;
+export function createNamesForPaths(paths: string[]): string[] {
+    return paths.map(x => slugify(x));
 }

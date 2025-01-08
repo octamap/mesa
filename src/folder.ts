@@ -4,6 +4,7 @@ import ComponentSource from './types/ComponentSource.js';
 import getAllChildrenOfFolder from './helpers/getAllChildrenOfFolder.js';
 import { createNamesForPaths } from './helpers/createNamesForPaths.js';
 import ComponentsMap from './types/ComponentsMap.js';
+import toKebabCase from './helpers/toKebabCase.js';
 
 function resolvePath(callerPath: string, relativePath: string) {
     let callerDir;
@@ -55,10 +56,13 @@ function getCallerFile(): string {
 
 /**
  * Create component for all files of a folder 
+ * Files within folders (such as folderName/fileName.html) are usuable by doing <folder-name-file-name/>
  * @param relativePath Path relative to the folder 
+ * @param options.importMetaUrl Needs to be specified if you call this from outside of vite.config.ts
+ * @param options.prefix Gets added to the start of the component names. Example <your-prefix-file-name/>. The name of the parent folders of files wont be added to the component name if prefix is specified
  */
-export default function folder(relativePath: string): ComponentsMap {
-    const callerPath = getCallerFile();
+export default function folder(relativePath: string, options?: { importMetaUrl?: string, prefix?: string }): ComponentsMap {
+    const callerPath = options?.importMetaUrl ?? getCallerFile();
     if (!callerPath) {
         throw new Error('Unable to determine caller path');
     }
@@ -75,22 +79,31 @@ export default function folder(relativePath: string): ComponentsMap {
     const relativeOfAllChildren = allChildren.map(childPath =>
         path.relative(absolutePath, childPath)
     );
-    console.log(relativeOfAllChildren)
 
     // Map to components
-    const namedPaths = createNamesForPaths(relativeOfAllChildren)
-    console.log("named paths", namedPaths)
+    const prefix = options?.prefix ? toKebabCase(options.prefix) : undefined
+    const names = prefix ? relativeOfAllChildren.map(x => {
+        let cleanPath = x.replace(/^\/+/, '');
+        const parts = cleanPath.split('/')
+        const file = parts.pop() || '';
+        const ext = path.extname(file);       
+        const fileWithoutExt = toKebabCase(path.basename(file, ext)); 
+        return `${prefix}-${fileWithoutExt}`
+    }) : createNamesForPaths(relativeOfAllChildren)
 
     // Convert to absolute paths
     const components: Record<string, ComponentSource> = {}
-    for (const [name, relativePath] of Object.entries(namedPaths)) {
+    for (let index = 0; index < names.length; index++) {
+        const name = names[index];
+        const relativePath = relativeOfAllChildren[index]
         components[name] = {
             type: "absolute",
             path: path.resolve(absolutePath, relativePath)
         }
     }
+
     if (fs.existsSync(absolutePath)) {
-        return  components
+        return components
     } else {
         throw new Error("File does not exist: " + absolutePath)
     }

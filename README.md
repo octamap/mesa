@@ -546,6 +546,216 @@ When the same component is used **outside of its primary context** (e.g., `some-
 
 ✅ **Inline styles guarantee isolation** and ensure the component renders consistently even without global styles.
 
+
+Here's an **illustration-ready version** of your complex scenario with improved clarity and formatting for your README:
+
+---
+
+# 📚 **Advanced Example: Multi-Package Integration with Mesa**
+
+In this example, we'll explore how **Mesa** enables seamless integration between separate packages for **SVG icons** and **web components**, allowing clean, reusable, and optimized component architecture.
+
+---
+
+## 🚀 **Scenario Overview**
+
+We have two npm packages:
+
+1. **oicon** – A package containing SVG icons.  
+2. **components** – A package containing reusable UI components, including one that uses icons from **oicon**.
+
+### 📂 **1. oicon Package**
+
+```plaintext
+oicon/
+├── package.json
+├── index.ts
+└── src/
+    ├── chevron-left.svg
+    ├── checkmark.svg
+```
+
+#### 📄 **index.ts**
+
+```typescript
+import { folder } from '@octamap/mesa';
+
+const OIconComponents = folder("./src/", {
+    importMetaUrl: import.meta.url, // Ensures Mesa resolves the correct paths
+    prefix: "oicon" // Enables usage as <oicon-chevron-left />
+});
+
+export { OIconComponents };
+```
+
+With this setup:
+- Icons are accessible via `<oicon-chevron-left />` and `<oicon-checkmark />`.
+
+---
+
+### 📂 **2. Components Package**
+
+```plaintext
+components/
+├── package.json
+├── index.ts
+└── src/
+    └── back-button.html
+```
+
+#### 📄 **back-button.html**
+
+```html
+<button class="top-left-back">
+    <oicon-chevron-left></oicon-chevron-left>
+</button>
+
+<style>
+.top-left-back {
+    position: fixed;
+    left: 30px;
+    top: 30px;
+    --diameter: 55px;
+    height: var(--diameter);
+    width: var(--diameter);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 100em;
+    border: none;
+    outline: solid 1px var(--line-color);
+    background-color: white;
+    cursor: pointer;
+}
+</style>
+```
+
+Here:
+- The **Back Button** component references `<oicon-chevron-left>`.
+
+#### 📄 **index.ts**
+
+```typescript
+import { folder } from '@octamap/mesa';
+
+const Components = folder("./src/", {
+    importMetaUrl: import.meta.url, // Correct path resolution
+});
+
+export { Components };
+```
+
+---
+
+### 📂 **3. Main Project Integration**
+
+Now, let's integrate these packages into our **Vite** configuration.
+
+#### 📄 **vite.config.ts**
+
+```typescript
+import { defineConfig } from 'vite';
+import { Mesa } from '@octamap/mesa';
+import { OIconComponents } from '@your-package/oicon';
+import { Components } from '@your-package/components';
+
+export default defineConfig({
+  plugins: [
+    Mesa({
+      ...OIconComponents,
+      ...Components,
+    }),
+  ],
+});
+```
+
+---
+
+### 📂 **4. Using Components in Your Project**
+
+Let's create a `check-inbox.html` page.
+
+#### 📄 **check-inbox.html**
+
+```html
+<div class="check-inbox-page">
+    <back-button @click="closeCheckInbox()"></back-button>
+</div>
+
+<style>
+.check-inbox-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 100vw;
+    z-index: 100;
+}
+</style>
+```
+
+**Mesa Handles:**
+1. **Scoped Styles** – `check-inbox-page` and `top-left-back` styles are scoped and applied correctly.
+2. **Lazy Loading** – `check-inbox.html` styles are inlined only when the page is loaded.
+3. **Optimized Rendering** – No unnecessary CSS in your `index.html`.
+
+---
+
+## 🪄 **How Mesa Optimizes Your Build**
+
+When a user navigates to `check-inbox.html`:
+
+1. The router dynamically loads `check-inbox.html`.  
+2. Mesa inlines the required CSS for `.check-inbox-page` and `.top-left-back`.  
+3. SVG content is embedded in the `<back-button>` component.
+
+**Resulting HTML:**
+
+```html
+<div class="check-inbox-page">
+    <button class="top-left-back" @click="closeCheckInbox()">
+        <svg viewBox="0 0 11 20" xmlns="http://www.w3.org/2000/svg">
+            <path d="M9.216,1.369l-7.847,8.627l7.847,8.628"
+                style="fill:#fff;stroke:currentColor;stroke-width:2.74px;"></path>
+        </svg>
+    </button>
+</div>
+
+<style>
+.check-inbox-page {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    position: absolute;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    width: 100vw;
+    z-index: 100;
+}
+
+.top-left-back {
+    position: fixed;
+    left: 30px;
+    top: 30px;
+    --diameter: 55px;
+    height: var(--diameter);
+    width: var(--diameter);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 100em;
+    border: none;
+    outline: solid 1px var(--line-color);
+    background-color: white;
+    cursor: pointer;
+}
+</style>
+```
+
 ---
 
 ### 🧠 **How Mesa Manages Scoped Styles:**

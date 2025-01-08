@@ -4,6 +4,7 @@ import splitHtmlAndCssFromComponents from './methods/splitHtmlAndCssFromComponen
 import getAllTagNames from './methods/getAllTagNames.js';
 import fs from "fs";
 import getHtmlFiles from './methods/getHtmlFiles.js';
+import processHtmlAndInjectCss from './methods/processHtmlAndInjectCss.js';
 // Plugin definition
 export default function Mesa(components) {
     let cssSplit = splitHtmlAndCssFromComponents(components);
@@ -48,7 +49,7 @@ export default function Mesa(components) {
                     });
                 }
                 return {
-                    html: await processHtml(html, componentsWithoutStyle),
+                    html: await processHtml(html, componentsWithoutStyle).then(x => x.html),
                     tags
                 };
             },
@@ -73,25 +74,15 @@ export default function Mesa(components) {
                 }
                 // Compile components
                 const importedStyles = Object.keys(stylesUsedByMain);
-                const unImportedStyles = Object.keys(styles).filter(x => !importedStyles.includes(x));
                 for (const [fileName, file] of Object.entries(bundle)) {
                     if (fileName.endsWith('.html')) {
                         try {
                             const html = file.source;
                             if (typeof html !== 'string')
                                 continue;
-                            file.source = await processHtml(html, componentsWithoutStyle);
-                            // Find tag names not used by main entry 
-                            const styleOfComponentsToImport = getAllTagNames(html).filter(x => unImportedStyles.includes(x));
-                            // Add a style element at the top that contains the styles
-                            if (styleOfComponentsToImport.length > 0) {
-                                const stylesToImport = [];
-                                for (const tag of styleOfComponentsToImport) {
-                                    stylesToImport.push(styles[tag]);
-                                }
-                                const style = `<style>${stylesToImport.join("\n")}</style>`;
-                                file.source = style + "\n" + file.source;
-                            }
+                            file.source = await processHtmlAndInjectCss(html, components, styles, {
+                                skipInjectOfComponents: importedStyles
+                            });
                             console.log(`Transformed build output: ${fileName}`);
                         }
                         catch (err) {
@@ -112,7 +103,6 @@ export default function Mesa(components) {
             }
             const { componentsWithoutStyle, styles } = await cssSplit;
             const importedStyles = Object.keys(stylesUsedByMain);
-            const unImportedStyles = Object.keys(styles).filter(x => !importedStyles.includes(x));
             const processHtmlFiles = async (dir) => {
                 const children = fs.readdirSync(dir);
                 await Promise.all(children.map(async (file) => {
@@ -123,19 +113,10 @@ export default function Mesa(components) {
                     else if (filePath.endsWith('.html')) {
                         let html = fs.readFileSync(filePath, 'utf-8');
                         console.log(`🔧 Processing HTML file: ${filePath}`);
-                        // Find tag names not used by main entry 
-                        const styleOfComponentsToImport = getAllTagNames(html).filter(x => unImportedStyles.includes(x));
-                        html = await processHtml(html, componentsWithoutStyle);
-                        // Add a style element at the top that contains the styles
-                        if (styleOfComponentsToImport.length > 0) {
-                            const stylesToImport = [];
-                            for (const tag of styleOfComponentsToImport) {
-                                stylesToImport.push(styles[tag]);
-                            }
-                            const style = `<style>${stylesToImport.join("\n")}</style>`;
-                            html = style + "\n" + html;
-                        }
-                        fs.writeFileSync(filePath, html);
+                        const transformedHtml = await processHtmlAndInjectCss(html, components, styles, {
+                            skipInjectOfComponents: importedStyles
+                        });
+                        fs.writeFileSync(filePath, transformedHtml);
                     }
                 }));
             };
@@ -200,23 +181,14 @@ export default function Mesa(components) {
                         (async () => {
                             try {
                                 const { componentsWithoutStyle, styles } = await cssSplit;
-                                let transformedHtml = await processHtml(body, componentsWithoutStyle);
-                                // Inject styles for components not included in the main entry
-                                const usedTags = getAllTagNames(transformedHtml);
-                                const importedStyles = Object.keys(stylesUsedByMain);
-                                const unImportedStyles = Object.keys(styles).filter((tag) => !importedStyles.includes(tag));
-                                const styleOfComponentsToImport = usedTags.filter((tag) => unImportedStyles.includes(tag));
-                                if (styleOfComponentsToImport.length > 0) {
-                                    const stylesToInject = styleOfComponentsToImport
-                                        .map((tag) => styles[tag])
-                                        .join('\n');
-                                    transformedHtml = `<style>${stylesToInject}</style>\n${transformedHtml}`;
-                                }
+                                let html = await processHtmlAndInjectCss(body, componentsWithoutStyle, styles, {
+                                    skipInjectOfComponents: Object.keys(stylesUsedByMain)
+                                });
                                 // Set headers and send the transformed response
                                 if (!res.headersSent) {
                                     res.setHeader('Content-Type', 'text/html');
                                 }
-                                originalWrite.call(res, transformedHtml, encoding, callback);
+                                originalWrite.call(res, html, encoding, callback);
                                 originalEnd.call(res, callback, encoding);
                             }
                             catch (err) {
@@ -248,17 +220,10 @@ export default function Mesa(components) {
                     cssSplit = splitHtmlAndCssFromComponents(components);
                     lastCssContent = Object.values(await cssSplit.then(x => x.styles)).join("\n");
                     console.log(`[vite-plugin-mesa] Component updated: ${file}`);
-                    // Notify the browser to update styles via HMR
+                    // We need to read the new content of the file 
                     server.ws.send({
-                        type: 'update',
-                        updates: [{
-                                type: 'css-update',
-                                path: `/${VIRTUAL_CSS_ID}`,
-                                acceptedPath: `/${VIRTUAL_CSS_ID}`,
-                                timestamp: Date.now(),
-                                explicitImportRequired: false,
-                                isWithinCircularImport: false,
-                            }]
+                        type: 'full-reload',
+                        path: '*'
                     });
                 }
                 else if (isHtmlFile) {

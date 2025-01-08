@@ -5,4 +5,4 @@
  *   "check-inbox": "/check-inbox.html"
  * }
  */
-export declare function createNamesForPaths(paths: string[]): Record<string, string>;
+export declare function createNamesForPaths(paths: string[]): string[];
