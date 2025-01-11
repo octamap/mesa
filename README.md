@@ -5,20 +5,30 @@
 
 Mesa is a **build-time HTML component engine** that allows you to write reusable, declarative HTML components with scoped CSS and dynamic attributes — **without requiring runtime JavaScript to render them**.  
 
-Whether you're building a **static website**, a **micro-frontend architecture**, or simply love the elegance of HTML-first development, **Mesa empowers you to focus on your markup** while ensuring your pages remain **lightweight, SEO-friendly, and blazing fast**.  
-
----
+Whether you're building a **static website**, a **micro-frontend architecture**, or **HTML-first** website development, Mesa keeps your pages **lightweight, SEO-friendly, and blazing fast**.  
 
 ## 🛠️ **What is Mesa?**
 
 Mesa allows you to:  
+
 1. **Write reusable HTML components**.  
 2. **Use them in other HTML files**.  
-3. **Automatically handle props, dynamic attributes, and scoped styles at build time**.  
+3. **Automatically handle props, dynamic attributes, and scoped styles at build time**.
 
-Let’s dive right in!
+## ⚡ Super quick reactivity
+No need for large runtimes for reactivity (such as Vue, React & Svelte)
 
----
+Mesa is framework agnostic. Achive the same level of reactivity by pairing it up with somthing quick and lightweight like alpine.js or HTMX for **⚡️super quick hydration⚡️**
+
+
+## 🎉 VS Code Extension!! (Beta)
+Type completions & syntax highlighting is now supported through a brand new Mesa Visual Studio Code extension!! 
+
+#### **Early Beta**:
+[Install Mesa VS Code Extension](https://marketplace.visualstudio.com/items?itemName=octamap.mesa)
+
+#### **Report issues**:
+This extension is really new. Please send any issues with the extension to `extension@octamap.com`
 
 ## 📄 **1. Create a Component**
 
@@ -101,7 +111,6 @@ Mesa compiles the above into:
 ✅ **Styles are extracted and scoped correctly.**  
 ✅ **No runtime rendering — everything happens at build time.**  
 
----
 
 # ⚙️ **Features**
 
@@ -212,7 +221,6 @@ Mesa recursively processes inner components during the build phase.
 
 ✅ Fully recursive parsing and transformation.  
 
----
 
 # 📚 **Getting Started**
 
@@ -261,24 +269,26 @@ npm run build
 
 ✅ Your components are compiled, styles extracted, and everything is optimized.  
 
----
+
+# ⚡️ Ultra quick hydration
+
+Svelte SSG has been the wholy grail of quick websites. With Mesa you achive this but even quicker. 
+
+- SvelteKit SSG hydration involves loading the Svelte runtime and then essentially "rebuilding" the page’s structure by mapping pre-rendered HTML to its components.
+
+- Mesa achieves the same level of interactivity by allowing you to use lightweight frameworks like Alpine.js or HTMX, which operate directly on the DOM. These frameworks don’t need to rebuild the page’s structure—they simply bind functionality to the already-rendered HTML.
+
+### Comparison:
+
+| Feature                   | SvelteKit (SSG)              | Mesa + alpine.js             |
+| ------------------------- | ---------------------------- | --------------------- |
+| **Initial HTML Load**     | Instant                      | Instant               |
+| **JavaScript Payload**    | Medium (slightly larger)     | Small (lightweight)   |
+| **Hydration Speed**       | Slightly Slower              | Faster (no hydration) |
+| **Reactivity Setup Time** | Fast, but hydration required | Very Fast             |
+
 
 # 🚦 **Advanced Usage**
-
-### 🔄 **Dynamic Attribute Mapping**
-Use `#target` for custom mapping:
-
-```html
-<custom-input x-model="email"></custom-input>
-```
-
-### 📑 **Scoped CSS in Components**
-Component-specific styles are automatically included in `component-styles.css`.  
-
-### 🧩 **Integration with Alpine.js or HTMX**
-Mesa plays nicely with lightweight JS libraries for dynamic interactions.
-
----
 
 ## 📦 **Defining Components Outside of `vite.config.ts`**
 
