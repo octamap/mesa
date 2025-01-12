@@ -52,18 +52,35 @@ export default async function processHtml(html: string, components: ComponentsMa
         const parent = doc.body.firstElementChild;
         const elements = parent ? getAttributesOfChildElements(parent) : [];
         const defaultAttributes = parent ? Array.from(parent.attributes) : []
-
-        if ((elements.length > 0) || defaultAttributes.length > 0) {
+        let parentInnerHtml = parent?.innerHTML.trim() 
+        if ((parentInnerHtml?.length ?? 0) == 0) parentInnerHtml = undefined;
+        if ((elements.length > 0) || defaultAttributes.length > 0 || parentInnerHtml) {
             const compiledContentDom = new JSDOM(`<div>${decodeSyntax(compiledContent)}</div>`);
             const compiledContentDoc = compiledContentDom.window.document;
             const compiledContentElements = Array.from(compiledContentDoc.querySelectorAll('*'))
 
+            const rootElementOfCompiled = (() => {
+                // If compiled content has one root element, then this is default by default 
+                const rootChildren = compiledContentDoc.body.firstElementChild?.children ?? []
+                if (rootChildren.length == 1) {
+                    return rootChildren[0]
+                }
+                return undefined;
+            })()
+
+            let matchingElements = 0;
             for (const element of elements) {
-                const compiledElement = compiledContentElements.find(x => x.hasAttribute(`#${element.tagName}`))
+                const current = `#${element.tagName}`
+                let compiledElement = compiledContentElements.find(x => x.hasAttribute(current))
+                if (compiledElement == undefined && current == "#default") {
+                    // Its the root element 
+                    compiledElement = rootElementOfCompiled
+                }
                 if (compiledElement) {
+                    matchingElements += 1;
                     // Remove unless we have default attributes on the parent to apply later
                     if (!(element.tagName == "default" && defaultAttributes.length > 0)) {
-                        compiledElement.removeAttribute(`#${element.tagName}`)
+                        compiledElement.removeAttribute(current)
                     }
                     for (const attribute of element.attributes) {
                         compiledElement.setAttribute(attribute.name, attribute.value);
@@ -73,15 +90,15 @@ export default async function processHtml(html: string, components: ComponentsMa
                     }
                 }
             }
-            if (defaultAttributes.length > 0) {
-                let defaultElment = compiledContentElements.find(x => x.hasAttribute(`#default`))
-                if (!defaultElment) {
-                    // If compiled content has one root element, then this is default by default 
-                    const rootChildren = compiledContentDoc.body.firstElementChild?.children ?? []
-                    if (rootChildren.length == 1) {
-                        defaultElment = rootChildren[0]
-                    }
+            if (matchingElements == 0 && innerHtml) {
+                // The user has not specified slots. The user has specified what should be put in the default slot
+                const defaultElment = compiledContentElements.find(x => x.hasAttribute(`#default`)) ?? rootElementOfCompiled
+                if (defaultElment) {
+                    defaultElment.innerHTML = innerHtml
                 }
+            }
+            if (defaultAttributes.length > 0) {
+                const defaultElment = compiledContentElements.find(x => x.hasAttribute(`#default`)) ?? rootElementOfCompiled
                 if (defaultElment) {
                     defaultElment.removeAttribute('#default');
                     for (const attribute of defaultAttributes) {
@@ -92,7 +109,7 @@ export default async function processHtml(html: string, components: ComponentsMa
             if (compiledContentDoc.body.firstElementChild) {
                 compiledContent = encodeSyntax(compiledContentDoc.body.firstElementChild.innerHTML)
             }
-        }
+        } 
         return compiledContent
     }))
 
