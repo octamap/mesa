@@ -1,6 +1,6 @@
 {
   "name": "@octamap/mesa",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Build-time HTML component engine",
   "type": "module",
   "keywords": ["html", "vite", "compiler", "built-time", "components"],
