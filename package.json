@@ -25,8 +25,8 @@
   "files": [
     "dist/*"
   ],
-  "author": "",
-  "license": "ISC",
+  "author": "octamap",
+  "license": "MIT",
   "peerDependencies": {},
   "dependencies": {
     "jsdom": "^25.0.1"
