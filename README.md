@@ -24,16 +24,16 @@ Mesa is framework agnostic. Achive the same level of reactivity by pairing it up
 ## 🎉 VS Code Extension!! (Beta)
 Type completions & syntax highlighting is now supported through a brand new Mesa Visual Studio Code extension!! 
 
-## 🤯 Javascript with no runtime Javascript (NOT AVAILABLE YET, COMING SOON)
-Mesa not only lets you create components without requiring runtime Javascript. Mesa also lets you **write Javascript without requiring runtime Javascript** 🤯. (new in since version 1.2.0). Read more about this [here](#-📄-compile-time-javascript-with-mesa).
-
-This feature will be expanded in the future (Make requests through tickets on github)
-
 #### **Early Beta**:
 [Install Mesa VS Code Extension](https://marketplace.visualstudio.com/items?itemName=octamap.mesa)
 
 #### **Report issues**:
-This extension is really new. Please send any issues with the extension to `extension@octamap.com`
+This extension is really new. Please send any issues with the extension to `extension@octamap.com`. 
+
+## 🤯 Javascript with no runtime Javascript (NOT AVAILABLE YET, COMING SOON)
+Mesa not only lets you create components without requiring runtime Javascript. Mesa also lets you **write Javascript without requiring runtime Javascript** 🤯. (new in since version 1.2.0). Read more about this [here](#-📄-compile-time-javascript-with-mesa).
+
+This feature will be expanded in the future (Make requests through tickets on github)
 
 ## 📄 **1. Create a Component**
 
