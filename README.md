@@ -31,7 +31,7 @@ Type completions & syntax highlighting is now supported through a brand new Mesa
 This extension is really new. Please send any issues with the extension to `extension@octamap.com`. 
 
 ## 🤯 Javascript with no runtime Javascript (NOT AVAILABLE YET, COMING SOON)
-Mesa not only lets you create components without requiring runtime Javascript. Mesa also lets you **write Javascript without requiring runtime Javascript** 🤯. (new in since version 1.2.0). Read more about this [here](#-🤯-compile-time-javascript).
+Mesa not only lets you create components without requiring runtime Javascript. Mesa also lets you **write Javascript without requiring runtime Javascript** 🤯. (new in since version 1.2.0). Read more about this [here](#-compile-time-javascript).
 
 This feature will be expanded in the future (Make requests through tickets on github)
 
