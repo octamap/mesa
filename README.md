@@ -31,7 +31,7 @@ Type completions & syntax highlighting is now supported through a brand new Mesa
 This extension is really new. Please send any issues with the extension to `extension@octamap.com`. 
 
 ## 🤯 Javascript with no runtime Javascript (NOT AVAILABLE YET, COMING SOON)
-Mesa not only lets you create components without requiring runtime Javascript. Mesa also lets you **write Javascript without requiring runtime Javascript** 🤯. (new in since version 1.2.0). Read more about this [here](#-📄-compile-time-javascript-with-mesa).
+Mesa not only lets you create components without requiring runtime Javascript. Mesa also lets you **write Javascript without requiring runtime Javascript** 🤯. (new in since version 1.2.0). Read more about this [here](#-🤯-compile-time-javascript).
 
 This feature will be expanded in the future (Make requests through tickets on github)
 
@@ -293,11 +293,9 @@ Svelte SSG has been the wholy grail of quick websites. With Mesa you achive this
 | **Reactivity Setup Time** | Fast, but hydration required | Very Fast             |
 
 
-### 📄 **Compile-Time JavaScript with `#mesa`**
+# 🤯 Compile Time JavaScript
 
 Mesa allows you to use **JavaScript at build time** to dynamically generate static HTML. This means you can use logic like loops, conditions, and bindings during the build process, but the final output is fully-rendered, SEO-friendly, and lightning-fast HTML.
-
----
 
 ### 🚀 **Getting Started with Compile-Time JavaScript**
 
@@ -415,7 +413,7 @@ Use `:for` loops and bindings to create interactive elements of a component call
 </div>
 ```
 
-# 🚦 **Advanced Usage**
+# 🚦 **Examples & Additional Features**
 
 ## 📦 **Defining Components Outside of `vite.config.ts`**
 
