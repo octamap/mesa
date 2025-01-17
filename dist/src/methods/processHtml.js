@@ -4,12 +4,7 @@ import getHtmForSource from "./getHtmlForSource.js";
 import findElementsWithTags from "./findElementsWithTags.js";
 import getInnerHTML from "./inner-html/getInnerHtml.js";
 import setInnerHTML from "./inner-html/setInnerHtml.js";
-function decodeSyntax(html) {
-    return html.replace(/@([\w-]+)=/g, 'data-event-$1=');
-}
-function encodeSyntax(html) {
-    return html.replace(/data-event-([\w-]+)=/g, '@$1=');
-}
+import SyntaxCoding from "../helpers/SyntaxCoding.js";
 // Processes HTML with provided components
 export default async function processHtml(html, components) {
     const tagNames = Object.keys(components);
@@ -39,7 +34,7 @@ export default async function processHtml(html, components) {
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml);
         }
         // Apply the attributes set on the uncompiled content to the component html
-        const dom = new JSDOM(`<body>${decodeSyntax(uncompiledContent)}</body>`);
+        const dom = new JSDOM(`<body>${SyntaxCoding.decode(uncompiledContent)}</body>`);
         const doc = dom.window.document;
         const parent = doc.body.firstElementChild;
         const elements = parent ? getAttributesOfChildElements(parent) : [];
@@ -48,7 +43,7 @@ export default async function processHtml(html, components) {
         if ((parentInnerHtml?.length ?? 0) == 0)
             parentInnerHtml = undefined;
         if ((elements.length > 0) || defaultAttributes.length > 0 || parentInnerHtml) {
-            const compiledContentDom = new JSDOM(`<div>${decodeSyntax(compiledContent)}</div>`);
+            const compiledContentDom = new JSDOM(`<div>${SyntaxCoding.decode(compiledContent)}</div>`);
             const compiledContentDoc = compiledContentDom.window.document;
             const compiledContentElements = Array.from(compiledContentDoc.querySelectorAll('*'));
             const rootElementOfCompiled = (() => {
@@ -98,7 +93,7 @@ export default async function processHtml(html, components) {
                 }
             }
             if (compiledContentDoc.body.firstElementChild) {
-                compiledContent = encodeSyntax(compiledContentDoc.body.firstElementChild.innerHTML);
+                compiledContent = SyntaxCoding.encode(compiledContentDoc.body.firstElementChild.innerHTML);
             }
         }
         return compiledContent;
@@ -109,5 +104,6 @@ export default async function processHtml(html, components) {
         const { from, to } = uncompiledElements[index];
         html = html.slice(0, from) + compiledContents[index] + html.slice(to);
     }
+    html = html.replaceAll("m-style", "style");
     return { html: html, componentsUsed: allComponentsUsed };
 }

@@ -8,6 +8,10 @@ import fs from "fs"
 import getHtmlFiles from './methods/getHtmlFiles.js';
 import { OutgoingHttpHeader, OutgoingHttpHeaders, ServerResponse } from 'http';
 import processHtmlAndInjectCss from './methods/processHtmlAndInjectCss.js';
+import getTagsUsedInHtml from './methods/getTagsUsedInHtml.js';
+import compileMesaJs from './mesa-js/compileMesaJs.js';
+import log from './log.js';
+import getHtmlInputsOfViteInput from './universal/getHtmlInputsOfViteInput.js';
 
 // Plugin definition
 export default function Mesa(components: ComponentsMap): Plugin {
@@ -18,15 +22,34 @@ export default function Mesa(components: ComponentsMap): Plugin {
 
     let viteConfig: ResolvedConfig;
     let lastCssContent: undefined | string;
-    let stylesUsedByMain: Record<string, string> = {}
+    let mainHtmls = new Map<string, string>() 
+    const entryHtmlFiles = new Set<string>();
+
+    async function processAndInjectCss(html: string) {
+        const { componentsWithoutStyle, styles } = await cssSplit
+        const tagsUsedInMain = mainHtmls ? await getTagsUsedInHtml(mainHtmls.values(), componentsWithoutStyle) : []
+        html = await processHtmlAndInjectCss(html, componentsWithoutStyle, styles, {
+            skipInjectOfComponents: tagsUsedInMain
+        });
+        return await compileMesaJs(html)
+    }
 
     return {
         name: 'mesa',
 
-        configResolved(resolvedConfig) {
+        async configResolved(resolvedConfig) {
             viteConfig = resolvedConfig;
-        },
+            Object.values(getHtmlInputsOfViteInput(viteConfig.build.rollupOptions.input)).forEach(x => {
+                entryHtmlFiles.add(x)
+            })
 
+            // Set mainHtmls so that transformIndexHtml gets the correct tags when calling getTagsUsedInHtml 
+            for (const entryHtmlFile of entryHtmlFiles) {
+                if (fs.existsSync(entryHtmlFile)) {
+                    mainHtmls.set(path.relative(process.cwd(), entryHtmlFile), fs.readFileSync(entryHtmlFile, 'utf-8'))
+                }
+            }
+        },
         resolveId(id) {
             if (id === VIRTUAL_CSS_ID) {
                 return RESOLVED_VIRTUAL_CSS_ID;
@@ -35,20 +58,14 @@ export default function Mesa(components: ComponentsMap): Plugin {
         },
 
         transformIndexHtml: {
-            order: "pre",
-            async handler(html, { bundle }) {
-                const { componentsWithoutStyle, styles } = await cssSplit
-                if (typeof html === 'string') {
-                    const tagNames = getAllTagNames(html);
-                    for (const tag of tagNames) {
-                        const style = styles[tag];
-                        if (style) {
-                            stylesUsedByMain[tag] = style
-                        }
-                    }
-                }
+            async handler(html, p) {
+                const { componentsWithoutStyle } = await cssSplit
+                mainHtmls.set(p.path, html)
+                const tagsUsedInMain = await getTagsUsedInHtml(mainHtmls.values(), components)
+                const tagsInMainHasStyle = Object.keys((await cssSplit).styles).some(x => tagsUsedInMain.includes(x))
+
                 const tags: HtmlTagDescriptor[] = []
-                if (Object.keys(stylesUsedByMain).length > 0) {
+                if (tagsInMainHasStyle) {
                     tags.push({
                         tag: "link",
                         injectTo: "head",
@@ -58,68 +75,71 @@ export default function Mesa(components: ComponentsMap): Plugin {
                         }
                     })
                 }
+                html = await processHtml(html, componentsWithoutStyle).then(x => x.html)
+                html = await compileMesaJs(html)
+
                 return {
-                    html: await processHtml(html, componentsWithoutStyle).then(x => x.html),
+                    html,
                     tags
                 }
             },
         },
 
+        async transform(code, id) {
+            if (!id.endsWith(".html")) return;
+
+            // Skip id if its a entry html 
+            if (entryHtmlFiles.has(id)) {
+                return;
+            }
+            const html = await processAndInjectCss(code)
+            return {
+                code: html,
+            }
+        },
+
         generateBundle: {
             order: "post",
             async handler(_, bundle) {
-                const { componentsWithoutStyle, styles } = await cssSplit
+                const { styles, componentsWithoutStyle } = await cssSplit
+                const tagsUsedInMain = mainHtmls ? await getTagsUsedInHtml(mainHtmls.values(), componentsWithoutStyle) : []
+                let stylesUsedInMain: string[] = []
+                for (const tag of tagsUsedInMain) {
+                    const style = styles[tag]
+                    if (style) {
+                        stylesUsedInMain.push(style)
+                    }
+                }
 
                 // Create the style file for the main index.html
-                if (Object.keys(stylesUsedByMain).length > 0) {
+                if (Object.keys(tagsUsedInMain).length > 0) {
                     try {
                         this.emitFile({
                             type: 'asset',
                             fileName: VIRTUAL_CSS_ID,
-                            source: Object.values(stylesUsedByMain).join("\n")
+                            source: Object.values(stylesUsedInMain).join("\n")
                         });
-                        console.log(`\n ✅ Styles injected for main files`);
+                        log(`\n ✅ Styles injected for main files`);
                     } catch (err) {
-                        console.error(`\n ❌ Failed to process main HTML entry`, err);
+                        log(`\n ❌ Failed to process main HTML entry`, "error");
+                        console.error(err)
                     }
                 }
-
-                // Compile components
-                const importedStyles = Object.keys(stylesUsedByMain)
-                for (const [fileName, file] of Object.entries(bundle)) {
-                    if (fileName.endsWith('.html')) {
-                        try {
-                            const html = (file as any).source;
-                            if (typeof html !== 'string') continue;
-                            (file as any).source = await processHtmlAndInjectCss(html, components, styles, {
-                                skipInjectOfComponents: importedStyles
-                            });
-                            console.log(`Transformed build output: ${fileName}`);
-                        } catch (err) {
-                            console.error(`Failed to transform ${fileName}`, err);
-                        }
-                    }
-                }
-
-                // Check for html files other than index.html were we need to inject styles that have not been imported yet
             },
         },
 
 
-        async closeBundle()  {
-            console.log('🔄 Post-processing build output...');
+        async closeBundle() {
+            log('🔄 Post-processing build output...');
 
             const distDir = viteConfig.build?.outDir || 'dist'; // Default Vite output directory
 
             // Ensure output folder exists
             if (!fs.existsSync(distDir)) {
-                console.warn('⚠️ Build directory does not exist. Skipping post-processing.');
+                log('⚠️ Build directory does not exist. Skipping post-processing.', "warn");
                 return;
             }
 
-            const { componentsWithoutStyle, styles } = await cssSplit
-            const importedStyles = Object.keys(stylesUsedByMain)
-        
             const processHtmlFiles = async (dir: string) => {
                 const children = fs.readdirSync(dir)
                 await Promise.all(children.map(async file => {
@@ -129,18 +149,15 @@ export default function Mesa(components: ComponentsMap): Plugin {
                         processHtmlFiles(filePath); // Recursively process subdirectories
                     } else if (filePath.endsWith('.html')) {
                         let html = fs.readFileSync(filePath, 'utf-8');
-                        console.log(`🔧 Processing HTML file: ${filePath}`);
-                        const transformedHtml = await processHtmlAndInjectCss(html, components, styles, {
-                            skipInjectOfComponents: importedStyles
-                        })
-                        fs.writeFileSync(filePath, transformedHtml);
+                        log(`🔧 Processing HTML file: ${filePath}`);
+                        fs.writeFileSync(filePath, await processAndInjectCss(html));
                     }
                 }))
             };
-            
+
             // Start processing
             await processHtmlFiles(distDir);
-            console.log('✅ Build output post-processing completed!');
+            log('✅ Build output post-processing completed!');
         },
 
         async configureServer(server) {
@@ -177,6 +194,7 @@ export default function Mesa(components: ComponentsMap): Plugin {
                 server.watcher.add(file!);
             });
 
+
             // --- The key middleware: transform any requested .html file (except the index) on the fly ---
             server.middlewares.use(async (req, res, next) => {
                 if (req.method !== 'GET' || !req.url?.endsWith('.html')) {
@@ -197,7 +215,7 @@ export default function Mesa(components: ComponentsMap): Plugin {
                     (res as any).writeHead = function (statusCode: number,
                         statusMessage?: string,
                         headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]) {
-                        res.removeHeader('Content-Length'); 
+                        res.removeHeader('Content-Length');
                         res.setHeader('Transfer-Encoding', 'chunked');
                         return originalWriteHead(statusCode, statusMessage, headers);
                     };
@@ -211,10 +229,7 @@ export default function Mesa(components: ComponentsMap): Plugin {
 
                         (async () => {
                             try {
-                                const { componentsWithoutStyle, styles } = await cssSplit;
-                                let html = await processHtmlAndInjectCss(body, componentsWithoutStyle, styles, {
-                                    skipInjectOfComponents: Object.keys(stylesUsedByMain)
-                                });
+                                const html = await processAndInjectCss(body)
 
                                 // Set headers and send the transformed response
                                 if (!res.headersSent) {
@@ -224,7 +239,8 @@ export default function Mesa(components: ComponentsMap): Plugin {
                                 originalWrite.call(res, html, encoding, callback);
                                 originalEnd.call(res, callback, encoding);
                             } catch (err) {
-                                console.error(`Failed to transform ${req.url}`, err);
+                                log(`Failed to transform ${req.url}`);
+                                console.error(err)
                                 if (!res.headersSent) {
                                     res.setHeader('Content-Type', 'text/html');
                                 }
@@ -240,24 +256,26 @@ export default function Mesa(components: ComponentsMap): Plugin {
 
                     next();
                 } catch (err) {
-                    console.error(`Error processing HTML for ${req.url}`, err);
+                    log(`Error processing HTML for ${req.url}`, "error");
+                    console.error(err)
                     next();
                 }
             });
+
 
             // Watch for changes -> reload, as you already do in your snippet
             server.watcher.on('change', async (file) => {
                 const isComponentFile = componentFiles.includes(file);
                 const isHtmlFile = htmlFiles.includes(file);
 
-                console.log(`[vite-plugin-mesa] Detected change in ${file}`);
+                log(`Detected change in ${file}`);
 
                 if (isComponentFile) {
                     // Update CSS split and cached content
                     cssSplit = splitHtmlAndCssFromComponents(components);
                     lastCssContent = Object.values(await cssSplit.then(x => x.styles)).join("\n");
 
-                    console.log(`[vite-plugin-mesa] Component updated: ${file}`);
+                    log(`Component updated: ${file}`);
 
                     // We need to read the new content of the file 
                     server.ws.send({
@@ -269,7 +287,7 @@ export default function Mesa(components: ComponentsMap): Plugin {
                     // Only reload the specific HTML file that changed
                     const relativePath = path.relative(viteConfig.root, file);
 
-                    console.log(`[vite-plugin-mesa] HTML file updated: ${relativePath}`);
+                    log(`HTML file updated: ${relativePath}`);
 
                     server.ws.send({
                         type: 'full-reload',
@@ -278,7 +296,7 @@ export default function Mesa(components: ComponentsMap): Plugin {
                 }
                 else {
                     // Default fallback: full reload for other changes
-                    console.log(`[vite-plugin-mesa] Unknown change, performing full reload.`);
+                    log(`Unknown change, performing full reload.`);
                     server.ws.send({
                         type: 'full-reload',
                         path: '*'

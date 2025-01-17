@@ -24,6 +24,11 @@ Mesa is framework agnostic. Achive the same level of reactivity by pairing it up
 ## 🎉 VS Code Extension!! (Beta)
 Type completions & syntax highlighting is now supported through a brand new Mesa Visual Studio Code extension!! 
 
+## 🤯 Javascript with no runtime Javascript
+Mesa not only lets you create components without requiring runtime Javascript. Mesa also lets you **write Javascript without requiring runtime Javascript** 🤯. (new in since version 1.2.0). Read more about this [here](#-📄-compile-time-javascript-with-mesa).
+
+This feature will be expanded in the future (Make requests through tickets on github)
+
 #### **Early Beta**:
 [Install Mesa VS Code Extension](https://marketplace.visualstudio.com/items?itemName=octamap.mesa)
 
@@ -287,6 +292,128 @@ Svelte SSG has been the wholy grail of quick websites. With Mesa you achive this
 | **Hydration Speed**       | Slightly Slower              | Faster (no hydration) |
 | **Reactivity Setup Time** | Fast, but hydration required | Very Fast             |
 
+
+### 📄 **Compile-Time JavaScript with `#mesa`**
+
+Mesa allows you to use **JavaScript at build time** to dynamically generate static HTML. This means you can use logic like loops, conditions, and bindings during the build process, but the final output is fully-rendered, SEO-friendly, and lightning-fast HTML.
+
+---
+
+### 🚀 **Getting Started with Compile-Time JavaScript**
+
+#### **1️⃣ Define Compile-Time Logic**
+
+Use the `<script #mesa>` tag to write your JavaScript logic. This script runs only during the build process and is not included in the final output.
+
+```html
+<script #mesa>
+  const items = ["Home", "About", "Contact"];
+</script>
+```
+
+#### **2️⃣ Use the Variables in Your HTML**
+
+Mesa's declarative syntax makes it easy to loop through data and dynamically generate HTML.
+
+```html
+<ul>
+  <li :for="item in items">{{ item }}</li>
+</ul>
+```
+
+#### **3️⃣ Mesa Compiles the HTML**
+
+During the build, Mesa executes the `#mesa` script and replaces the dynamic logic with fully-rendered static HTML.
+
+---
+
+### ✅ **Simple Example: Dynamic List**
+
+#### **Input:**
+```html
+<script #mesa>
+  const items = ["Home", "About", "Contact"];
+</script>
+<ul>
+  <li :for="item in items">{{ item }}</li>
+</ul>
+```
+
+#### **Output:**
+```html
+<ul>
+  <li>Home</li>
+  <li>About</li>
+  <li>Contact</li>
+</ul>
+```
+
+This produces clean, static HTML without requiring any JavaScript at runtime.
+
+### ✅ **Dynamic Attributes and Event Bindings**
+
+You can also bind attributes and events dynamically at build time.
+
+#### **Input:**
+```html
+<script #mesa>
+  const buttons = [
+    { label: "Save", action: "saveData()" },
+    { label: "Delete", action: "deleteData()" },
+  ];
+</script>
+<div>
+  <button :for="button in buttons" @click="button.action">
+    {{ button.label }}
+  </button>
+</div>
+```
+
+#### **Output:**
+```html
+<div>
+  <button @click="saveData()">Save</button>
+  <button @click="deleteData()">Delete</button>
+</div>
+```
+
+---
+
+### 🚀 **More Advanced Examples**
+
+Once you're comfortable with the basics, you can use Mesa's compile-time JavaScript for more complex scenarios.
+
+#### **Dynamic Segments**
+
+Use `:for` loops and bindings to create interactive elements of a component called `segment-control`
+
+##### **Input:**
+```html
+<script #mesa>
+  const segments = [
+    { name: "Document Tools", url: "/videos/doc-tools.mov" },
+    { name: "3D Configurators", url: "/videos/configurators.mov" },
+  ];
+</script>
+<segment-control
+  :for="(segment, index) in segments"
+  @click="play(segment.url)"
+  :class="{selected: index === selectedIndex}">
+  {{ segment.name }}
+</segment-control>
+```
+
+##### **Output:**
+```html
+<div class="segment-control">
+  <button @click="play('/videos/doc-tools.mov')" :class="{selected: 0 === selectedIndex}">
+    Document Tools
+  </button>
+  <button @click="play('/videos/configurators.mov')" :class="{selected: 1 === selectedIndex}">
+    3D Configurators
+  </button>
+</div>
+```
 
 # 🚦 **Advanced Usage**
 

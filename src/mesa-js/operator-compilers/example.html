@@ -1,0 +1,14 @@
+<!-- Input -->
+<div class="segment" :for="(segment, index) in segments" x-text="$t[localizationKey]"
+    @click="play(segment.video, $data); videoSelected = index" :class="{selected: index == videoSelected}">segment.default</div>
+
+<!--Output-->
+<div class="segment" x-text="$t['documentTools']"
+    @click="play('/videos/extracter.mov?hls', $data); videoSelected = 0" :class="{selected: videoSelected == 0}">
+    Document Tools
+</div>
+<div class="segment" x-text="$t['configurators']"
+    @click="play('/videos/linkify.mov?hls', $data); videoSelected = 1" :class="{selected: videoSelected == 1}">
+    3D Configurators
+</div>
+

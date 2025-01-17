@@ -18,5 +18,6 @@ export default async function splitHtmlAndCssFromComponents(components: Componen
         }
         componentsWithoutStyle[key] = { type: "raw", html: cleanHtml }
     }))
+
     return {componentsWithoutStyle, styles}
 }
