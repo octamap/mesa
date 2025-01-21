@@ -1,24 +1,30 @@
 import SyntaxCoding from "../helpers/SyntaxCoding.js";
 import analyzeMesaJs from "./analyzeMesaJs.js";
 import findMesaJS from "./findMesaJS.js";
-import forOperatorCompile from "./operator-compilers/forOperatorCompile.js";
+import compileOperators from "./operator-compilers/compileOperators.js";
 import removeMesaJs from "./removeMesaJs.js";
-export default async function compileMesaJs(html) {
+function compileNeeded(html) {
+    if (html.includes("m-") || html.includes("{{")) {
+        return true;
+    }
+    return false;
+}
+export async function compileMesaJs(html) {
     try {
-        // Find mesa JS 
-        const jsBlocks = findMesaJS(html);
-        if (jsBlocks.length == 0)
+        if (!compileNeeded(html)) {
             return html;
+        }
+        // Find mesa JS blocks
+        const jsBlocks = findMesaJS(html);
         // Remove all mesa js blocks
         html = removeMesaJs(html);
-        // Analyze
+        // Analyze blocks
         const variables = await Promise.all(jsBlocks.flatMap(x => analyzeMesaJs(x)));
-        if (!variables.length)
-            return html;
         html = SyntaxCoding.decode(html);
         // Compile the for each operators 
-        html = forOperatorCompile(html, variables);
+        html = await compileOperators(html, variables);
         html = SyntaxCoding.encode(html);
+        html = html.replace(/{{\s*(.*?)\s*}}/g, '$1');
         return html;
     }
     catch (error) {

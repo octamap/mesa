@@ -1,13 +1,21 @@
 {
   "name": "@octamap/mesa",
-  "version": "1.1.9",
+  "version": "1.2.0",
   "description": "Build-time HTML component engine",
   "type": "module",
-  "keywords": ["html", "vite", "compiler", "built-time", "components"],
+  "keywords": [
+    "html",
+    "vite",
+    "compiler",
+    "built-time",
+    "components"
+  ],
   "private": false,
   "scripts": {
-    "build": "tsc",
-    "publish-npmjs": "npm publish --access public"
+    "clean": "rimraf dist",
+    "build": "npm run clean && tsc && npm run copy-assets",
+    "publish-npmjs": "npm publish --access public",
+    "copy-assets": "mkdir -p dist/src/assets && ncp ./src/assets dist/src/assets"
   },
   "exports": {
     ".": {
@@ -35,6 +43,7 @@
     "@types/jsdom": "^21.1.7",
     "@types/node": "^20.2.1",
     "path": "^0.12.7",
+    "rimraf": "^6.0.1",
     "tsconfig": "*",
     "tslib": "^2.6.2",
     "typescript": "^5.3.3",

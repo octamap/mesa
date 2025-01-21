@@ -8,9 +8,10 @@ import setInnerHTML from "./inner-html/setInnerHtml.js";
 import SyntaxCoding from "../helpers/SyntaxCoding.js";
 
 // Processes HTML with provided components
-export default async function processHtml(html: string, components: ComponentsMap): Promise<{ html: string, componentsUsed: string[] }> {
+export default async function processHtml(html: string, components: ComponentsMap, options?: { injectIds?: boolean }): Promise<{ html: string, componentsUsed: string[] }> {
     const tagNames = Object.keys(components)
     const uncompiledElements = findElementsWithTags(tagNames, html)
+    options ??= {}
 
     if (uncompiledElements.length == 0) return { html, componentsUsed: [] }
     const allComponentsUsed: string[] = []
@@ -25,7 +26,7 @@ export default async function processHtml(html: string, components: ComponentsMa
         // We exclude the current tag to prevent infinite loops in case the component references itself
         const componentsExcludingCurrent = { ...components }
         delete componentsExcludingCurrent[uncompiledElement.tag]
-        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent)
+        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent, {...options })
         compiledContent = processedComponentHtml
         allComponentsUsed.push(...componentsUsed)
         allComponentsUsed.push(uncompiledElement.tag)
@@ -34,7 +35,7 @@ export default async function processHtml(html: string, components: ComponentsMa
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to)
         const innerHtml = getInnerHTML(uncompiledContent)
         if (innerHtml) {
-            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components)
+            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, {...options})
             allComponentsUsed.push(...componentsUsed)
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml)
         }
@@ -112,6 +113,5 @@ export default async function processHtml(html: string, components: ComponentsMa
         const { from, to } = uncompiledElements[index]
         html = html.slice(0, from) + compiledContents[index] + html.slice(to)
     }
-    html = html.replaceAll("m-style", "style")
     return { html: html, componentsUsed: allComponentsUsed }
 }

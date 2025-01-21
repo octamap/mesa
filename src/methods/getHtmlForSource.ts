@@ -14,5 +14,6 @@ export default async function getHtmForSource(source: ComponentSource) {
     if (!fs.existsSync(absolutePath)) {
         return undefined;
     }
-    return fs.readFileSync(absolutePath, 'utf-8');
+    const data = fs.readFileSync(absolutePath, 'utf-8');
+    return data
 }

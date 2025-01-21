@@ -1,3 +1,6 @@
 import ArrayVariable from "./ArrayVariable.js";
-type Variable = ArrayVariable;
+import BooleanVariable from "./BooleanVariable.js";
+import StringVariable from "./NumberVariable.js";
+import NumberVariable from "./StringVariable.js";
+type Variable = ArrayVariable | StringVariable | NumberVariable | BooleanVariable;
 export default Variable;

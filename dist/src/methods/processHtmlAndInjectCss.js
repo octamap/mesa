@@ -1,7 +1,7 @@
 import processHtml from "./processHtml.js";
 export default async function processHtmlAndInjectCss(html, components, styles, options) {
     // Process the html
-    const response = await processHtml(html, components);
+    const response = await processHtml(html, components, { injectIds: options.injectIds });
     html = response.html;
     // Add a style element at the top that contains the styles
     const stylesToImport = [];
@@ -10,7 +10,12 @@ export default async function processHtmlAndInjectCss(html, components, styles, 
             continue;
         const style = styles[tag];
         if (style) {
-            stylesToImport.push(styles[tag]);
+            if (options.injectCssWithComments) {
+                stylesToImport.push(`/*start:${tag}*/\n${styles[tag]}\n/*end:${tag}*/`);
+            }
+            else {
+                stylesToImport.push(styles[tag]);
+            }
         }
     }
     if (stylesToImport.length > 0) {
@@ -22,11 +27,11 @@ export default async function processHtmlAndInjectCss(html, components, styles, 
             // Append new styles to the existing <style> block
             const existingStyles = match[1];
             const updatedStyles = `${existingStyles}\n${newStyles}`;
-            html = html.replace(styleRegex, `<style>${updatedStyles}</style>`);
+            html = html.replace(styleRegex, `<style mesa>${updatedStyles}</style>`);
         }
         else {
             // Add a new <style> block at the top
-            const style = `<style>${newStyles}</style>`;
+            const style = `<style mesa>${newStyles}</style>`;
             html = style + "\n" + html;
         }
     }

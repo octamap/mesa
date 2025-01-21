@@ -29,17 +29,35 @@ export default function analyzeMesaJs(code) {
     // Inspect the exported variables to identify arrays and their structure
     const results = [];
     for (const key in exportedVars) {
-        const elements = exportedVars[key];
-        if (Array.isArray(elements)) {
+        const value = exportedVars[key];
+        if (Array.isArray(value)) {
             results.push({
                 type: "array",
                 name: key,
-                elements
+                elements: value
             });
         }
-    }
-    if (results.length == 0) {
-        console.log(code);
+        else if (typeof value === 'string') {
+            results.push({
+                type: "string",
+                name: key,
+                value: value
+            });
+        }
+        else if (typeof value === 'number') {
+            results.push({
+                type: "number",
+                name: key,
+                value: value
+            });
+        }
+        else if (typeof value === 'boolean') {
+            results.push({
+                type: "boolean",
+                name: key,
+                value: value
+            });
+        }
     }
     return results;
 }

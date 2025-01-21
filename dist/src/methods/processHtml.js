@@ -6,9 +6,10 @@ import getInnerHTML from "./inner-html/getInnerHtml.js";
 import setInnerHTML from "./inner-html/setInnerHtml.js";
 import SyntaxCoding from "../helpers/SyntaxCoding.js";
 // Processes HTML with provided components
-export default async function processHtml(html, components) {
+export default async function processHtml(html, components, options) {
     const tagNames = Object.keys(components);
     const uncompiledElements = findElementsWithTags(tagNames, html);
+    options ??= {};
     if (uncompiledElements.length == 0)
         return { html, componentsUsed: [] };
     const allComponentsUsed = [];
@@ -21,7 +22,7 @@ export default async function processHtml(html, components) {
         // We exclude the current tag to prevent infinite loops in case the component references itself
         const componentsExcludingCurrent = { ...components };
         delete componentsExcludingCurrent[uncompiledElement.tag];
-        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent);
+        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent, { ...options });
         compiledContent = processedComponentHtml;
         allComponentsUsed.push(...componentsUsed);
         allComponentsUsed.push(uncompiledElement.tag);
@@ -29,7 +30,7 @@ export default async function processHtml(html, components) {
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to);
         const innerHtml = getInnerHTML(uncompiledContent);
         if (innerHtml) {
-            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components);
+            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, { ...options });
             allComponentsUsed.push(...componentsUsed);
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml);
         }
@@ -104,6 +105,5 @@ export default async function processHtml(html, components) {
         const { from, to } = uncompiledElements[index];
         html = html.slice(0, from) + compiledContents[index] + html.slice(to);
     }
-    html = html.replaceAll("m-style", "style");
     return { html: html, componentsUsed: allComponentsUsed };
 }

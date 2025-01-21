@@ -1,9 +1,6 @@
 import { JSDOM } from 'jsdom';
-export default function forOperatorCompile(htmlText: string, variables: {
-    type: "array";
-    name: string;
-    elements: any[];
-}[]): string;
+import Variable from "../types/Variable.js";
+export default function compileForOperator(dom: JSDOM, element: Element, variables: Variable[]): void;
 interface ItemData {
     [key: string]: any;
 }
@@ -17,6 +14,6 @@ interface ItemData {
  * @param indexVar The variable name representing the array index. E.g. 'index'
  * @returns        An array of cloned elements with all references replaced.
  */
-export declare function repeatElement(dom: JSDOM, element: Element, items: ItemData[], itemVar: string | null, indexVar: string | null): Element[];
+export declare function repeatElement(dom: JSDOM, element: Element, items: ItemData[], itemVar: string | null, indexVar: string | null, arrayName: string | null): Element[];
 export declare function compileVariables(code: string, baseName: string, variables: Record<string, any>, wrapStrings: boolean): string;
 export {};
