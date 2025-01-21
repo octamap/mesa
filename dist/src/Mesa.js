@@ -1,3 +1,4 @@
+import fsPromises from 'fs/promises';
 import path from 'path';
 import processHtml from './methods/processHtml.js';
 import splitHtmlAndCssFromComponents from './methods/splitHtmlAndCssFromComponents.js';
@@ -11,6 +12,8 @@ import getHtmlInputsOfViteInput from './universal/getHtmlInputsOfViteInput.js';
 import MesaHMR from './hmr/MesaHMR.js';
 import splitHtmlAndCss from './methods/splitHtmlAndCss.js';
 import { fileURLToPath } from 'url';
+import ora from 'ora';
+import logText from './logText.js';
 export default function Mesa(componentsSource) {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource();
     let cssSplit = Promise.resolve({ componentsWithoutStyle: {}, styles: {} });
@@ -160,6 +163,33 @@ export default function Mesa(componentsSource) {
                         console.error(err);
                     }
                 }
+                let spinner = ora(logText("🔄 Processing bundle...")).start();
+                const distDir = viteConfig.build?.outDir || 'dist'; // Default Vite output directory
+                // Ensure output folder exists
+                if (!fs.existsSync(distDir)) {
+                    log('⚠️ Build directory does not exist. Skipping post-processing.', "warn");
+                    return;
+                }
+                const processHtmlFiles = async (dir) => {
+                    const children = await fsPromises.readdir(dir);
+                    await Promise.all(children.map(async (file) => {
+                        const filePath = path.join(dir, file);
+                        if ((await fsPromises.stat(filePath)).isDirectory()) {
+                            await processHtmlFiles(filePath);
+                        }
+                        else if (filePath.endsWith('.html')) {
+                            let html = await fsPromises.readFile(filePath, 'utf-8');
+                            this.emitFile({
+                                type: "asset",
+                                fileName: path.relative(distDir, filePath),
+                                source: await processAndInjectCss(html)
+                            });
+                        }
+                    }));
+                };
+                // Start processing
+                await processHtmlFiles(distDir);
+                spinner.succeed("Bundle fully processed");
             },
         },
         async handleHotUpdate(ctx) {
@@ -212,32 +242,6 @@ export default function Mesa(componentsSource) {
                 type: 'full-reload',
                 path: '*',
             });
-        },
-        async closeBundle() {
-            log('🔄 Post-processing build output...');
-            const distDir = viteConfig.build?.outDir || 'dist'; // Default Vite output directory
-            // Ensure output folder exists
-            if (!fs.existsSync(distDir)) {
-                log('⚠️ Build directory does not exist. Skipping post-processing.', "warn");
-                return;
-            }
-            const processHtmlFiles = async (dir) => {
-                const children = fs.readdirSync(dir);
-                await Promise.all(children.map(async (file) => {
-                    const filePath = path.join(dir, file);
-                    if (fs.statSync(filePath).isDirectory()) {
-                        processHtmlFiles(filePath); // Recursively process subdirectories
-                    }
-                    else if (filePath.endsWith('.html')) {
-                        let html = fs.readFileSync(filePath, 'utf-8');
-                        log(`🔧 Processing HTML file: ${filePath}`);
-                        fs.writeFileSync(filePath, await processAndInjectCss(html));
-                    }
-                }));
-            };
-            // Start processing
-            await processHtmlFiles(distDir);
-            log('✅ Build output post-processing completed!');
         },
         async configureServer(server) {
             // --- The key middleware: transform any requested .html file (except the index) on the fly ---

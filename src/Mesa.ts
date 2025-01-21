@@ -1,3 +1,5 @@
+import fsPromises from 'fs/promises';
+import chalk from 'chalk';
 import path from 'path';
 import { HtmlTagDescriptor, Plugin, ResolvedConfig, ViteDevServer } from 'vite';
 import ComponentsMap from './types/ComponentsMap.js';
@@ -14,6 +16,8 @@ import getHtmlInputsOfViteInput from './universal/getHtmlInputsOfViteInput.js';
 import MesaHMR from './hmr/MesaHMR.js';
 import splitHtmlAndCss from './methods/splitHtmlAndCss.js';
 import { fileURLToPath } from 'url';
+import ora from 'ora';
+import logText from './logText.js';
 
 
 export default function Mesa(componentsSource: ComponentsMap | (() => ComponentsMap)): Plugin {
@@ -143,7 +147,6 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
 
         async transform(code, id) {
             if (!id.endsWith(".html")) return;
-
             // Skip id if its a entry html 
             if (entryHtmlFiles.has(id)) {
                 return;
@@ -181,7 +184,36 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                         console.error(err)
                     }
                 }
-        
+
+                let spinner = ora(logText("🔄 Processing bundle...")).start();
+                const distDir = viteConfig.build?.outDir || 'dist'; // Default Vite output directory
+
+                // Ensure output folder exists
+                if (!fs.existsSync(distDir)) {
+                    log('⚠️ Build directory does not exist. Skipping post-processing.', "warn");
+                    return;
+                }
+
+                const processHtmlFiles = async (dir: string) => {
+                    const children = await fsPromises.readdir(dir)
+                    await Promise.all(children.map(async file => {
+                        const filePath = path.join(dir, file);
+                        if ((await fsPromises.stat(filePath)).isDirectory()) {
+                            await processHtmlFiles(filePath);
+                        } else if (filePath.endsWith('.html')) {
+                            let html = await fsPromises.readFile(filePath, 'utf-8');
+                            this.emitFile({
+                                type: "asset",
+                                fileName: path.relative(distDir, filePath),
+                                source: await processAndInjectCss(html)
+                            })
+                        }
+                    }))
+                };
+
+                // Start processing
+                await processHtmlFiles(distDir);
+                spinner.succeed("Bundle fully processed")
             },
         },
 
@@ -237,39 +269,8 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 path: '*',
             });
         },
-        async closeBundle() {
-            log('🔄 Post-processing build output...');
-
-            const distDir = viteConfig.build?.outDir || 'dist'; // Default Vite output directory
-
-            // Ensure output folder exists
-            if (!fs.existsSync(distDir)) {
-                log('⚠️ Build directory does not exist. Skipping post-processing.', "warn");
-                return;
-            }
-
-            const processHtmlFiles = async (dir: string) => {
-                const children = fs.readdirSync(dir)
-                await Promise.all(children.map(async file => {
-                    const filePath = path.join(dir, file);
-
-                    if (fs.statSync(filePath).isDirectory()) {
-                        processHtmlFiles(filePath); // Recursively process subdirectories
-                    } else if (filePath.endsWith('.html')) {
-                        let html = fs.readFileSync(filePath, 'utf-8');
-                        log(`🔧 Processing HTML file: ${filePath}`);
-                        fs.writeFileSync(filePath, await processAndInjectCss(html));
-                    }
-                }))
-            };
-
-            // Start processing
-            await processHtmlFiles(distDir);
-            log('✅ Build output post-processing completed!');
-        },
 
         async configureServer(server) {
-
             // --- The key middleware: transform any requested .html file (except the index) on the fly ---
             server.middlewares.use(async (req, res, next) => {
                 if (req.method !== 'GET' || !req.url?.endsWith('.html')) {
