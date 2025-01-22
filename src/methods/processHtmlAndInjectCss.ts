@@ -6,6 +6,7 @@ export default async function processHtmlAndInjectCss(
     html: string,
     components: ComponentsMap,
     styles: Record<string, string>,
+    scripts: Record<string, string>,
     options: { skipInjectOfComponents: string[], injectCssWithComments?: boolean, injectIds?: boolean }) {
     
     // Process the html
@@ -14,14 +15,18 @@ export default async function processHtmlAndInjectCss(
 
     // Add a style element at the top that contains the styles
     const stylesToImport: string[] = []
+    const scriptsToImport: string[] = []
     for (const tag of response.componentsUsed) {
-        if (options.skipInjectOfComponents.includes(tag)) continue;
+        const script = scripts[tag]
+        if (script) {
+            scriptsToImport.push(script)
+        }
         const style = styles[tag]
         if (style) {
             if (options.injectCssWithComments) {
-                stylesToImport.push(`/*start:${tag}*/\n${styles[tag]}\n/*end:${tag}*/`)
+                stylesToImport.push(`/*start:${tag}*/\n${style}\n/*end:${tag}*/`)
             } else {
-                stylesToImport.push(styles[tag])
+                stylesToImport.push(style)
             }
         }
     }
@@ -42,6 +47,11 @@ export default async function processHtmlAndInjectCss(
             const style = `<style mesa>${newStyles}</style>`;
             html = style + "\n" + html;
         }
+    }
+    if (scriptsToImport.length > 0) {
+        const newScripts = scriptsToImport.join(";\n")
+        const script = `<script>\n${newScripts}\n</script>`
+        html = script + "\n" + html
     }
     return html
 }
