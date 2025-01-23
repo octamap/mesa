@@ -13,7 +13,7 @@ export default function getAllChildrenOfFolder(dir: string): string[] {
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
 
-        if (entry.isDirectory()) {
+        if (entry.isDirectory() && entry.name != "node_modules") {
             // If it's a directory, recursively get its children
             results = results.concat(getAllChildrenOfFolder(fullPath));
         } else {
