@@ -1,7 +1,16 @@
 
+
 export default function splitHtmlCSSAndJS(input: string): [string, string | null, string | null] {
     try {
-        if (!input.includes("<style>") || !input.includes("<script")) return [input, null, null]
+        if (!input.includes("<style>") && !input.includes("<script")) return [input, null, null]
+        let isScriptLinkEncoded = false
+        if (input.includes("<script") && input.includes("src")) {
+            input = input.replaceAll(
+                /<script\b([^>]*)\bsrc\s*=\s*(['"])(.*?)\2([^>]*)>(.*?)<\/script>/g,
+                '<mesa-link-script$1src=$2$3$2$4>$5</mesa-link-script>'
+            );
+            isScriptLinkEncoded = true
+        }
 
         // Regular expression to match <style> blocks
         const styleRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
@@ -33,8 +42,11 @@ export default function splitHtmlCSSAndJS(input: string): [string, string | null
         const js = scriptParts.length > 0 ? scriptParts.join('\n\n') : null;
 
         // Remove all <style> and <script> blocks from the original input to get the HTML
-        const html = input.replace(styleRegex, '').replace(scriptRegex, '').trim();
+        let html = input.replace(styleRegex, '').replace(scriptRegex, '').trim();
 
+        if (isScriptLinkEncoded) {
+            html = html.replaceAll("mesa-link-script", "script")
+        }
         return [html, css, js];
     } catch {
         return [input, null, null]

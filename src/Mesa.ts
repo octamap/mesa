@@ -19,6 +19,8 @@ import ora from 'ora';
 import logText from './logText.js';
 import getFileName from './methods/getFileName.js';
 import getCurrentEntry from './methods/getCurrentEntry.js';
+import convertExportToHtml from './universal/convertExportToHtml.js';
+import convertHtmlToExport from './universal/convertHtmlToExport.js';
 
 export default function Mesa(componentsSource: ComponentsMap | (() => ComponentsMap)): Plugin {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource()
@@ -26,8 +28,8 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
         componentsWithoutStyle: ComponentsMap;
         styles: Record<string, string>;
         scripts: Record<string, string>
-    }> = Promise.resolve({componentsWithoutStyle: {}, styles: {}, scripts: {}})
-
+    }> = Promise.resolve({ componentsWithoutStyle: {}, styles: {}, scripts: {} })
+    
     const VIRTUAL_CSS_ID = 'mesa.css';
     const HMR_HANDLER_ID = 'virtual:mesa-hmr.js';
     const RESOLVED_HMR_HANDLER_ID = '\0' + HMR_HANDLER_ID;
@@ -171,7 +173,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                     })
                 }
                 const { componentsWithoutStyle } = await cssSplit
-                html = await processHtml(html, componentsWithoutStyle, {injectIds: isDev}).then(x => x.html)
+                html = await processHtml(html, componentsWithoutStyle, { injectIds: isDev }).then(x => x.html)
                 html = await compileMesaJs(html)
 
                 return {
@@ -182,14 +184,19 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
         },
 
         async transform(code, id) {
-            if (!id.endsWith(".html")) return;
+            let isRaw = false
+            if (id.endsWith(".html?raw") || id.endsWith(".html?import&raw")) {
+                isRaw = true
+                code = convertExportToHtml(code)
+            } else if (!id.endsWith(".html")) return;
             // Skip id if its a entry html 
             if (entryHtmlFiles.has(id)) {
                 return;
             }
-            const html = await processAndInjectCss(code)
+            let html = await processAndInjectCss(code)
+            html = isRaw ? convertHtmlToExport(html) : html
             return {
-                code: html,
+                code: html
             }
         },
 
@@ -282,7 +289,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 }
                 
                 // Check if we have this component 
-                const componentName = Object.entries(components).find(([key, value]) => {
+                const componentName = Object.entries(components).find(([_, value]) => {
                     if (typeof value == "object") {
                         if (value.type == "absolute" && value.path == file) {
                             return true
@@ -295,7 +302,8 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                     const oldCss = await MesaHMR.get(componentName, "css")
                     const oldScript = await MesaHMR.get(componentName, "js")
                     const newHtmlAndCss = (async () => {
-                        const [html, css, js] = splitHtmlCSSAndJS(await getData())
+                        const data = await getData()
+                        const [html, css, js] = splitHtmlCSSAndJS(data)
                         const resolvedCssSplit = await cssSplit
                         resolvedCssSplit.componentsWithoutStyle[componentName] = { type: "raw", html } 
                         if (css) {
@@ -385,83 +393,8 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                         res.end(css);
                         return;
                     }
-                    return next();
                 }
-
-                delete req.headers['if-modified-since'];
-                delete req.headers['if-none-match'];
-
-                try {
-                    // Create a PassThrough stream to intercept the response
-                    const originalWrite = res.write;
-                    const originalEnd = res.end;
-                    const originalWriteHead = res.writeHead.bind(res);
-
-                    const chunks: any[] = [];
-                    res.write = function (chunk: any) {
-                        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-                        return true; // Indicate the write was successful
-                    };
-
-                    function setHeaders(res: ServerResponse<any>) {
-                        res.removeHeader('Content-Length');
-                        res.removeHeader('ETag');
-                        res.removeHeader("Last-Modified")
-                        res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-                        res.setHeader('Pragma', 'no-cache');
-                        res.setHeader('Expires', '0');
-                        res.setHeader('Surrogate-Control', 'no-store');
-                        res.setHeader('Transfer-Encoding', 'chunked');
-                        res.setHeader('Content-Type', 'text/html');
-
-                    }
-                    (res as any).writeHead = function (statusCode: number,
-                        statusMessage?: string,
-                        headers?: OutgoingHttpHeaders | OutgoingHttpHeader[]) {
-                        setHeaders(res)
-                        return originalWriteHead(statusCode == 304 ? 200 : statusCode, statusMessage, headers);
-                    };
-
-                    (res as any).end = function (chunk: any, encoding: BufferEncoding, callback: () => void) {
-                        if (chunk) {
-                            chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-                        }
-            
-                        let body = Buffer.concat(chunks).toString('utf-8'); // Combine all chunks into a string
-
-                        (async () => {
-                            try {
-                                const html = await processAndInjectCss(body)
-
-                                // Set headers and send the transformed response
-                                if (!res.headersSent) {
-                                   setHeaders(res)
-                                }
-
-                                originalWrite.call(res, html, encoding, callback);
-                                originalEnd.call(res, callback, encoding);
-                            } catch (err) {
-                                log(`Failed to transform ${req.url}`);
-                                console.error(err)
-                                if (!res.headersSent) {
-                                    setHeaders(res)
-                                }
-                                // Fallback to the original unprocessed response
-                                originalWrite.call(res, body, encoding, callback);
-                                originalEnd.call(res, callback, encoding);
-                            }
-                        })();
-
-                        return res;
-                    };
-
-
-                    next();
-                } catch (err) {
-                    log(`Error processing HTML for ${req.url}`, "error");
-                    console.error(err)
-                    next();
-                }
+                  return next()
             });
 
             let debounceTimeout: any | undefined
