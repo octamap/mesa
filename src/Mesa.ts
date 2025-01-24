@@ -482,12 +482,17 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             function isSame(old: ComponentsMap, newMap: ComponentsMap) {
                 const oldKeys = Object.keys(old)
                 const newKeys = Object.keys(newMap)
+
+        
                 if (oldKeys.length != newKeys.length) {
                     return false;
                 }
                 for (const key of oldKeys) {
                     const oldValue = old[key]
                     const newValue = newMap[key]
+                    if (!newValue != !oldValue) {
+                        return false;
+                    }
                     if (typeof newValue == "string") {
                         if (oldValue != newValue) {
                             return false;

@@ -157,8 +157,6 @@
 
                 // Replace the old link with the new one
                 existingLink.parentNode.replaceChild(newLink, existingLink);
-
-                console.log(`Stylesheet updated: ${basePath}`);
             } else {
                 console.warn(`Stylesheet not found for path: ${path}`);
             }

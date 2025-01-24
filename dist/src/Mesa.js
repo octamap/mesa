@@ -443,6 +443,9 @@ export default function Mesa(componentsSource) {
                 for (const key of oldKeys) {
                     const oldValue = old[key];
                     const newValue = newMap[key];
+                    if (!newValue != !oldValue) {
+                        return false;
+                    }
                     if (typeof newValue == "string") {
                         if (oldValue != newValue) {
                             return false;
