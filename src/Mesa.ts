@@ -18,6 +18,7 @@ import { fileURLToPath } from 'url';
 import ora from 'ora';
 import logText from './logText.js';
 import getFileName from './methods/getFileName.js';
+import getCurrentEntry from './methods/getCurrentEntry.js';
 
 export default function Mesa(componentsSource: ComponentsMap | (() => ComponentsMap)): Plugin {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource()
@@ -48,7 +49,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
         return await compileMesaJs(html)
     }
     const processPath = process.cwd()
-    let hasCssUpdates = false;
+    let hasCssFileUpdates = false;
 
     async function getCssForEntryName(entryName: string, styles: Record<string, string>, components: ComponentsMap) {
         const html = Array.from(mainHtmls.entries()).find(x => {
@@ -267,11 +268,11 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 // Get file relative to process
                 const relativePath = path.relative(processPath, file)
                 if (mainHtmls.has(relativePath)) {
+
+                    // The main html has been edited 
                     const dataPromise = getData()
                     mainHtmls.set(relativePath, dataPromise)
-                    const filePath = "/" + getFileName(file) + VIRTUAL_CSS_ID
-                    hasCssUpdates = true
-
+                    hasCssFileUpdates = true
                     server.ws.send({
                         type: 'full-reload',
                         path: "*",
@@ -317,15 +318,39 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                     const newJs = await newHtmlAndCss.then(x => x[2])
 
                     if (oldCss != newCss) {
-                        server.ws.send({
-                            type: 'custom',
-                            event: 'mesa-style-update',
-                            data: {
-                                componentName,
-                                style: newCss,
-                            },
-                        });
-                        return []; // Prevent full reload
+                        // 1 - This style might be within the style file 
+                        const entry = await getCurrentEntry(server)
+                        let cssFileUpdated = false;
+                        if (entry) {
+                            const html = await mainHtmls.get(entry)
+                            if (html) {
+                                // 1 - Get tags used 
+                                const tags = await getTagsUsedInHtml(html, components)
+                                if (tags.includes(componentName)) {
+                                    // We need to update the style file, not the style blocks 
+                                    const filePath = "/" + getFileName(entry) + VIRTUAL_CSS_ID
+                                    hasCssFileUpdates = true
+                                    server.ws.send({
+                                        type: "custom",
+                                        event: "mesa-css-file-change",
+                                        data: {
+                                            path: filePath
+                                        }
+                                    })
+                                    cssFileUpdated = true
+                                }
+                            }
+                        } 
+                        if (!cssFileUpdated) {
+                            server.ws.send({
+                                type: 'custom',
+                                event: 'mesa-style-update',
+                                data: {
+                                    componentName,
+                                    style: newCss,
+                                },
+                            });
+                        }
                     }
                     if (oldScript != newJs) {
                         server.ws.send({
@@ -350,13 +375,11 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             // --- The key middleware: transform any requested .html file (except the index) on the fly ---
             server.middlewares.use(async (req, res, next) => {
                 if (req.method !== 'GET' || !req.url?.endsWith('.html')) {
-                    if (hasCssUpdates && req.url && req.url.includes(VIRTUAL_CSS_ID)) {
+                    if (hasCssFileUpdates && req.url && req.url.includes(VIRTUAL_CSS_ID)) {
                         const indexOfMesaCss = req.url.indexOf(VIRTUAL_CSS_ID)
                         const fileName = req.url.slice(0, indexOfMesaCss)
                         const { componentsWithoutStyle, styles } = await cssSplit
-                        
                         const css = await getCssForEntryName(fileName, styles, componentsWithoutStyle)
-
                         res.statusCode = 200;
                         res.setHeader('Content-Type', "text/css");
                         res.end(css);

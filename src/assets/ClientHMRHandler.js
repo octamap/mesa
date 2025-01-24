@@ -130,10 +130,6 @@
             }
         });
 
-        import.meta.hot.on('mesa-html-update', ({ componentName, newHtml }) => {
-
-        })
-
 
         import.meta.hot.on('mesa-css-file-change', ({ path }) => {
             // Extract the base path without the query parameters
@@ -161,8 +157,6 @@
 
                 // Replace the old link with the new one
                 existingLink.parentNode.replaceChild(newLink, existingLink);
-
-                console.log(`Stylesheet updated: ${basePath}`);
             } else {
                 console.warn(`Stylesheet not found for path: ${path}`);
             }

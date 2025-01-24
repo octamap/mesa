@@ -130,10 +130,6 @@
             }
         });
 
-        import.meta.hot.on('mesa-html-update', ({ componentName, newHtml }) => {
-
-        })
-
 
         import.meta.hot.on('mesa-css-file-change', ({ path }) => {
             // Extract the base path without the query parameters
