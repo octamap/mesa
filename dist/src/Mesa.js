@@ -325,7 +325,6 @@ export default function Mesa(componentsSource) {
                         const indexOfMesaCss = req.url.indexOf(VIRTUAL_CSS_ID);
                         const fileName = req.url.slice(0, indexOfMesaCss);
                         const { componentsWithoutStyle, styles } = await cssSplit;
-                        console.log("a", fileName);
                         const css = await getCssForEntryName(fileName, styles, componentsWithoutStyle);
                         res.statusCode = 200;
                         res.setHeader('Content-Type', "text/css");

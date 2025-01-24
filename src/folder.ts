@@ -74,7 +74,7 @@ export default function folder(relativePath: string, options?: { importMetaUrl?:
         console.warn("[ MESA ] - Did not find any files in " + relativePath)
         return {}
     }
-
+    
     // All children with relative path
     const relativeOfAllChildren = allChildren.map(childPath =>
         path.relative(absolutePath, childPath)
