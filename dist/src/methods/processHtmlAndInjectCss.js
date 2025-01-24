@@ -7,13 +7,16 @@ export default async function processHtmlAndInjectCss(html, components, styles, 
     const stylesToImport = [];
     const scriptsToImport = [];
     for (const tag of response.componentsUsed) {
-        const script = scripts[tag];
+        let script = scripts[tag];
         if (script) {
+            if (options.injectWithComments) {
+                script = `/*start:${tag}*/\n${script}\n/*end:${tag}*/`;
+            }
             scriptsToImport.push(script);
         }
         const style = styles[tag];
         if (style) {
-            if (options.injectCssWithComments) {
+            if (options.injectWithComments) {
                 stylesToImport.push(`/*start:${tag}*/\n${style}\n/*end:${tag}*/`);
             }
             else {
@@ -40,7 +43,7 @@ export default async function processHtmlAndInjectCss(html, components, styles, 
     }
     if (scriptsToImport.length > 0) {
         const newScripts = scriptsToImport.join(";\n");
-        const script = `<script>\n${newScripts}\n</script>`;
+        const script = `<script mesa-inline>\n${newScripts}\n</script>`;
         html = script + "\n" + html;
     }
     return html;

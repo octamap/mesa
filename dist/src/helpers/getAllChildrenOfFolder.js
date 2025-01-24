@@ -10,7 +10,7 @@ export default function getAllChildrenOfFolder(dir) {
     const entries = fs.readdirSync(dir, { withFileTypes: true });
     for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
+        if (entry.isDirectory() && entry.name != "node_modules") {
             // If it's a directory, recursively get its children
             results = results.concat(getAllChildrenOfFolder(fullPath));
         }
