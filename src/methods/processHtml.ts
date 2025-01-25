@@ -1,7 +1,7 @@
 import { JSDOM } from "jsdom";
 import getAttributesOfChildElements from "./getAttributesOfChildElements.js";
 import ComponentsMap from "../types/ComponentsMap.js";
-import getHtmForSource from "./getHtmlForSource.js";
+import getHtmlForSource from "./getHtmlForSource.js";
 import findElementsWithTags from "./findElementsWithTags.js";
 import getInnerHTML from "./inner-html/getInnerHtml.js";
 import setInnerHTML from "./inner-html/setInnerHtml.js";
@@ -20,7 +20,7 @@ export default async function processHtml(html: string, components: ComponentsMa
     const compiledContents = await Promise.all(uncompiledElements.map(async uncompiledElement => {
         // Find the html of the component
         const source = components[uncompiledElement.tag];
-        let compiledContent = await getHtmForSource(source).then(x => x!)
+        let compiledContent = await getHtmlForSource(source).then(x => x!.data)
 
         // Process the html of the component (in case the component is using a component)
         // We exclude the current tag to prevent infinite loops in case the component references itself
@@ -33,11 +33,12 @@ export default async function processHtml(html: string, components: ComponentsMa
 
         // Process the html
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to)
-        const innerHtml = getInnerHTML(uncompiledContent)
+        let innerHtml = getInnerHTML(uncompiledContent)
         if (innerHtml) {
             const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, {...options})
             allComponentsUsed.push(...componentsUsed)
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml)
+            innerHtml = processedInnerHtml
         }
 
         // Apply the attributes set on the uncompiled content to the component html
