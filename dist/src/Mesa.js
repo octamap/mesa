@@ -274,7 +274,7 @@ export default function Mesa(componentsSource) {
                     const oldScript = await MesaHMR.get(componentName, "js");
                     const newHtmlAndCss = (async () => {
                         const data = await getData();
-                        const [html, css, js] = splitHtmlCSSAndJS(data);
+                        const [html, css, js] = splitHtmlCSSAndJS(data, file);
                         const resolvedCssSplit = await cssSplit;
                         resolvedCssSplit.componentsWithoutStyle[componentName] = { type: "raw", html };
                         if (css) {

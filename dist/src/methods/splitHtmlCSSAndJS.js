@@ -1,5 +1,9 @@
-export default function splitHtmlCSSAndJS(input) {
+import convertRelativeToAbsolutePaths from "./convertRelativeToAbsolutePaths.js";
+export default function splitHtmlCSSAndJS(input, inputFilePath) {
     try {
+        if (inputFilePath) {
+            input = convertRelativeToAbsolutePaths(input, inputFilePath);
+        }
         if (!input.includes("<style>") && !input.includes("<script"))
             return [input, null, null];
         let isScriptLinkEncoded = false;

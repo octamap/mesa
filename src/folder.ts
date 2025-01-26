@@ -5,6 +5,7 @@ import getAllChildrenOfFolder from './helpers/getAllChildrenOfFolder.js';
 import { createNamesForPaths } from './helpers/createNamesForPaths.js';
 import ComponentsMap from './types/ComponentsMap.js';
 import toKebabCase from './helpers/toKebabCase.js';
+import log from './log.js';
 
 function resolvePath(callerPath: string, relativePath: string) {
     let callerDir;
@@ -69,9 +70,9 @@ export default function folder(relativePath: string, options?: { importMetaUrl?:
     const absolutePath = resolvePath(callerPath, relativePath)
 
     // Get the path to all the children in absolute path, not just direct children but all
-    const allChildren = getAllChildrenOfFolder(absolutePath)
+    const allChildren = getAllChildrenOfFolder(absolutePath).filter(x => !(x.endsWith(".ts") || x.endsWith(".js")))
     if (allChildren.length == 0) {
-        console.warn("[ MESA ] - Did not find any files in " + relativePath)
+        log("Did not find any files in " + relativePath, "warn")
         return {}
     }
     
