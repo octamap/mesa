@@ -6,27 +6,40 @@ import findElementsWithTags from "./findElementsWithTags.js";
 import getInnerHTML from "./inner-html/getInnerHtml.js";
 import setInnerHTML from "./inner-html/setInnerHtml.js";
 import SyntaxCoding from "../helpers/SyntaxCoding.js";
+import { ViteDevServer } from "vite";
+import path from "path"
+import { stat } from "fs/promises"
 
 // Processes HTML with provided components
-export default async function processHtml(html: string, components: ComponentsMap, options?: { injectIds?: boolean }): Promise<{ html: string, componentsUsed: string[] }> {
+// options
+// - parentModule: The module that should be set as parent to the components within the html 
+// - server: The server to use for updating module graph
+// - originalComponents: Helps getHtmlForSource in figuring out the original file path of the component (necessary to create modules)
+export default async function processHtml(html: string, components: ComponentsMap, options?: { server?: ViteDevServer, hasMondo?: boolean, originalComponents?: ComponentsMap }): Promise<{ html: string, componentsUsed: string[] }> {
     const tagNames = Object.keys(components)
     const uncompiledElements = findElementsWithTags(tagNames, html)
     options ??= {}
 
     if (uncompiledElements.length == 0) return { html, componentsUsed: [] }
     const allComponentsUsed: string[] = []
-
+    const mondoTextsDirectoryPaths: Promise<string | undefined | null>[] = []
+     
     // Compile the new elements
     const compiledContents = await Promise.all(uncompiledElements.map(async uncompiledElement => {
         // Find the html of the component
         const source = components[uncompiledElement.tag];
-        let compiledContent = await getHtmlForSource(source).then(x => x!.data)
+        let { data: compiledContent, path: componentPath } = await getHtmlForSource(source, options.originalComponents?.[uncompiledElement.tag]).then(x => x!)
+
+        if (componentPath && options.hasMondo && compiledContent.includes("@")) {
+            // Lets check if the directory of the component contains a folder named @texts
+            mondoTextsDirectoryPaths.push(findTextsFolder(componentPath))
+        }
 
         // Process the html of the component (in case the component is using a component)
         // We exclude the current tag to prevent infinite loops in case the component references itself
         const componentsExcludingCurrent = { ...components }
         delete componentsExcludingCurrent[uncompiledElement.tag]
-        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent, {...options })
+        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent, { ...options })
         compiledContent = processedComponentHtml
         allComponentsUsed.push(...componentsUsed)
         allComponentsUsed.push(uncompiledElement.tag)
@@ -35,7 +48,7 @@ export default async function processHtml(html: string, components: ComponentsMa
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to)
         let innerHtml = getInnerHTML(uncompiledContent)
         if (innerHtml) {
-            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, {...options})
+            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, {...options })
             allComponentsUsed.push(...componentsUsed)
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml)
             innerHtml = processedInnerHtml
@@ -114,5 +127,37 @@ export default async function processHtml(html: string, components: ComponentsMa
         const { from, to } = uncompiledElements[index]
         html = html.slice(0, from) + compiledContents[index] + html.slice(to)
     }
+
+    const textLinks = (await Promise.all(mondoTextsDirectoryPaths)).filter(x => x != null)
+    if (textLinks.length) {
+        const linksText = textLinks.map(x => {
+            return `<link rel="texts" href="${x}">`
+        }).join("\n")
+        html = insertIntoHtml(html, linksText)
+    }
     return { html: html, componentsUsed: allComponentsUsed }
+}
+
+async function findTextsFolder(filePath: string) {
+    const expectedPath = path.join(path.dirname(filePath), "@texts")
+    try {
+        const info = await stat(expectedPath);
+        if (info.isDirectory()) {
+            return expectedPath;
+        } 
+    } catch (error) {
+        return null
+    }
+}
+
+function insertIntoHtml(html: string, contentToInsert: string) {
+    // Regex that matches the <head> tag and captures it for use in the replacement
+    const headRegex = /(<head[^>]*>)/i;
+
+    // Replace the <head> tag with itself followed by the content to insert
+    const replaced = html.replace(headRegex, `$1${contentToInsert}`);
+    if (replaced.includes(contentToInsert)) {
+        return replaced
+    }
+    return `${contentToInsert}\n${html}`
 }

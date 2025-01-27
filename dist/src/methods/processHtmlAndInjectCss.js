@@ -1,7 +1,7 @@
 import processHtml from "./processHtml.js";
 export default async function processHtmlAndInjectCss(html, components, styles, scripts, options) {
     // Process the html
-    const response = await processHtml(html, components, { injectIds: options.injectIds });
+    const response = await processHtml(html, components, { ...options });
     html = response.html;
     // Add a style element at the top that contains the styles
     const stylesToImport = [];
@@ -46,5 +46,5 @@ export default async function processHtmlAndInjectCss(html, components, styles, 
         const script = `<script mesa-inline>\n${newScripts}\n</script>`;
         html = script + "\n" + html;
     }
-    return html;
+    return { ...response, html };
 }

@@ -8,10 +8,13 @@ export default function convertExportToHtml(input: string): string {
     if (match && match[2]) {
         const quoteType = match[1]; // The type of quote used (' " `)
         const rawContent = match[2]; // The raw HTML content inside the quotes
-
+        
         // Reconstruct the quoted string to use JSON.parse for handling escape sequences
+        if (quoteType == `\``) {
+            // Has no escape characters
+            return rawContent
+        }
         const reconstructedString = `${quoteType}${rawContent}${quoteType}`;
-
         try {
             // Parse the string to handle any escape sequences
             const parsedString = JSON.parse(reconstructedString);

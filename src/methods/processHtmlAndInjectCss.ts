@@ -1,3 +1,4 @@
+import { ViteDevServer } from "vite";
 import ComponentsMap from "../types/ComponentsMap.js";
 import processHtml from "./processHtml.js";
 
@@ -7,10 +8,10 @@ export default async function processHtmlAndInjectCss(
     components: ComponentsMap,
     styles: Record<string, string>,
     scripts: Record<string, string>,
-    options: { skipInjectOfComponents: string[], injectWithComments?: boolean, injectIds?: boolean }) {
+    options: { skipInjectOfComponents: string[], server?: ViteDevServer, hasMondo?: boolean, originalComponents?: ComponentsMap, injectWithComments?: boolean }) {
     
     // Process the html
-    const response = await processHtml(html, components, {injectIds: options.injectIds});
+    const response = await processHtml(html, components, {...options});
     html = response.html
 
     // Add a style element at the top that contains the styles
@@ -56,5 +57,5 @@ export default async function processHtmlAndInjectCss(
         const script = `<script mesa-inline>\n${newScripts}\n</script>`
         html = script + "\n" + html
     }
-    return html
+    return {...response, html}
 }

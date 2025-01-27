@@ -13,9 +13,10 @@ import splitHtmlCSSAndJS from './methods/splitHtmlCSSAndJS.js';
 import { fileURLToPath } from 'url';
 import getFileName from './methods/getFileName.js';
 import getCurrentEntry from './methods/getCurrentEntry.js';
-import convertExportToHtml from './universal/convertExportToHtml.js';
-import convertHtmlToExport from './universal/convertHtmlToExport.js';
+import convertExportToHtml from './universal/js-html/convertExportToHtml.js';
+import convertHtmlToExport from './universal/js-html/convertHtmlToExport.js';
 import uniqueIdForFile from './methods/uniqueIdForFile.js';
+import getAbsolutePathOfSource from './methods/getAbsolutePathOfSource.js';
 export default function Mesa(componentsSource) {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource();
     let cssSplit = Promise.resolve({ componentsWithoutStyle: {}, styles: {}, scripts: {} });
@@ -27,15 +28,19 @@ export default function Mesa(componentsSource) {
     const entryHtmlFiles = new Set();
     const mesaStylesFolder = "mesa-styles";
     let isDev = false;
+    let devServer;
+    let hasMondo = false;
     async function processAndInjectCss(html) {
         const { componentsWithoutStyle, styles, scripts } = await cssSplit;
         const tagsUsedInMain = await getTagsUsedInHtml(await Promise.all(mainHtmls.values()), componentsWithoutStyle);
-        html = await processHtmlAndInjectCss(html, componentsWithoutStyle, styles, scripts, {
+        const processed = await processHtmlAndInjectCss(html, componentsWithoutStyle, styles, scripts, {
             skipInjectOfComponents: tagsUsedInMain,
             injectWithComments: isDev,
-            injectIds: isDev
+            server: devServer,
+            hasMondo,
+            originalComponents: components
         });
-        return await compileMesaJs(html);
+        return { ...processed, html: await compileMesaJs(processed.html) };
     }
     const processPath = process.cwd();
     let hasCssFileUpdates = false;
@@ -58,6 +63,7 @@ export default function Mesa(componentsSource) {
         name: 'mesa',
         async configResolved(resolvedConfig) {
             viteConfig = resolvedConfig;
+            hasMondo = resolvedConfig.hasMondo;
             isDev = viteConfig.command !== 'build';
             cssSplit = splitHtmlCSSAndJSFromComponents(components);
             Object.values(getHtmlInputsOfViteInput(viteConfig.build.rollupOptions.input)).forEach(x => {
@@ -81,23 +87,25 @@ export default function Mesa(componentsSource) {
             return null;
         },
         async load(id) {
-            const components = id.split("/").filter(x => x.length);
-            if (components.length > 0) {
-                const lastComponent = components[components.length - 1].normalize("NFC");
-                const indexOfMesaCss = lastComponent.indexOf(VIRTUAL_CSS_ID);
-                if (indexOfMesaCss != -1) {
-                    const { styles, componentsWithoutStyle } = await cssSplit;
-                    // Identify the filename 
-                    const filename = lastComponent.slice(0, indexOfMesaCss);
-                    return getCssForEntryName(filename, styles, componentsWithoutStyle);
-                }
-            }
             if (id.normalize("NFC").startsWith(`/${HMR_HANDLER_ID.normalize("NFC")}`)) {
                 const __filename = fileURLToPath(import.meta.url);
                 const __dirname = path.dirname(__filename);
                 const cssHmrUpdaterPath = path.resolve(__dirname, 'assets/ClientHMRHandler.js');
                 const cssHmrUpdater = fs.readFileSync(cssHmrUpdaterPath, 'utf-8');
                 return cssHmrUpdater;
+            }
+            if (!id.includes(".css") && id.includes("mesa-"))
+                return;
+            const components = id.split("/").filter(x => x.length);
+            if (components.length == 0)
+                return;
+            const lastComponent = components[components.length - 1].normalize("NFC");
+            const indexOfMesaCss = lastComponent.indexOf("mesa-");
+            if (indexOfMesaCss != -1) {
+                const { styles, componentsWithoutStyle } = await cssSplit;
+                // Identify the filename 
+                const filename = lastComponent.slice(0, indexOfMesaCss);
+                return getCssForEntryName(filename, styles, componentsWithoutStyle);
             }
         },
         transformIndexHtml: {
@@ -161,7 +169,7 @@ export default function Mesa(componentsSource) {
                     });
                 }
                 const { componentsWithoutStyle } = await cssSplit;
-                html = await processHtml(html, componentsWithoutStyle, { injectIds: isDev }).then(x => x.html);
+                html = await processHtml(html, componentsWithoutStyle, { server: p.server, hasMondo, originalComponents: components }).then(x => x.html);
                 html = await compileMesaJs(html);
                 return {
                     html,
@@ -169,23 +177,35 @@ export default function Mesa(componentsSource) {
                 };
             },
         },
-        async transform(code, id) {
-            let isRaw = false;
-            if (id.endsWith(".html?raw") || id.endsWith(".html?import&raw")) {
-                isRaw = true;
-                code = convertExportToHtml(code);
+        transform: {
+            order: "pre",
+            async handler(code, id) {
+                let isRaw = false;
+                if (id.endsWith(".html?raw") || id.endsWith(".html?import&raw")) {
+                    isRaw = true;
+                    code = convertExportToHtml(code);
+                }
+                else if (!id.endsWith(".html"))
+                    return;
+                // Skip id if its a entry html 
+                if (entryHtmlFiles.has(id)) {
+                    return;
+                }
+                let { html, componentsUsed } = await processAndInjectCss(code);
+                html = isRaw ? convertHtmlToExport(html) : html;
+                for (const tag of componentsUsed) {
+                    const source = components[tag];
+                    if (!source)
+                        continue;
+                    const absolutePath = getAbsolutePathOfSource(source);
+                    if (!absolutePath)
+                        continue;
+                    this.addWatchFile(absolutePath);
+                }
+                return {
+                    code: html
+                };
             }
-            else if (!id.endsWith(".html"))
-                return;
-            // Skip id if its a entry html 
-            if (entryHtmlFiles.has(id)) {
-                return;
-            }
-            let html = await processAndInjectCss(code);
-            html = isRaw ? convertHtmlToExport(html) : html;
-            return {
-                code: html
-            };
         },
         generateBundle: {
             order: "post",
@@ -222,7 +242,7 @@ export default function Mesa(componentsSource) {
         async handleHotUpdate(ctx) {
             const { file, read, server } = ctx;
             // Check if the file is a CSS or HTML file (or whatever file defines styles for components)
-            if (file.endsWith('.html')) {
+            if (file.endsWith('.html') || file.endsWith(".svg")) {
                 let cache;
                 async function getData() {
                     if (cache)
@@ -335,6 +355,7 @@ export default function Mesa(componentsSource) {
             });
         },
         async configureServer(server) {
+            devServer = server;
             // --- The key middleware: transform any requested .html file (except the index) on the fly ---
             server.middlewares.use(async (req, res, next) => {
                 if (req.method !== 'GET' || !req.url?.endsWith('.html')) {
@@ -430,7 +451,6 @@ export default function Mesa(componentsSource) {
                     server.watcher.unwatch(x);
                     return false;
                 });
-                // Start watching new files
                 for (const newFile of filesToWatch) {
                     if (filesBeingWatched.includes(newFile))
                         continue;
