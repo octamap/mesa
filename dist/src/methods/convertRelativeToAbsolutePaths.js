@@ -1,7 +1,7 @@
 import * as cheerio from 'cheerio';
 import path from "path";
 export default function convertRelativeToAbsolutePaths(html, htmlFilePath) {
-    if (!html.includes(`rel="texts`) || !html.includes("src="))
+    if (!(html.includes(`".`) && (html.includes(`link`) || html.includes("script"))))
         return html;
     const dirPath = path.dirname(htmlFilePath);
     return updateLinks(html, relativePath => {
@@ -9,15 +9,15 @@ export default function convertRelativeToAbsolutePaths(html, htmlFilePath) {
     });
 }
 function updateLinks(html, updatePath) {
-    const $ = cheerio.load(html, null, false);
-    $('link[rel="texts"]').each((_, element) => {
+    const $ = cheerio.load(html, null, html.includes("<!DOCTYPE"));
+    $('link').each((_, element) => {
         const href = $(element).attr('href');
         if (href) {
             const updatedHref = updatePath(href);
             $(element).attr('href', updatedHref);
         }
     });
-    $('script[type="module"]').each((_, element) => {
+    $('script').each((_, element) => {
         const src = $(element).attr('src')?.trim();
         if (src && src.startsWith(".")) {
             $(element).attr('src', updatePath(src));

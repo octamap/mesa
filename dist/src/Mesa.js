@@ -1,4 +1,3 @@
-import fsPromises from 'fs/promises';
 import path from 'path';
 import processHtml from './methods/processHtml.js';
 import splitHtmlCSSAndJSFromComponents from './methods/splitHtmlCSSAndJSFromComponents.js';
@@ -12,12 +11,11 @@ import getHtmlInputsOfViteInput from './universal/getHtmlInputsOfViteInput.js';
 import MesaHMR from './hmr/MesaHMR.js';
 import splitHtmlCSSAndJS from './methods/splitHtmlCSSAndJS.js';
 import { fileURLToPath } from 'url';
-import ora from 'ora';
-import logText from './logText.js';
 import getFileName from './methods/getFileName.js';
 import getCurrentEntry from './methods/getCurrentEntry.js';
 import convertExportToHtml from './universal/convertExportToHtml.js';
 import convertHtmlToExport from './universal/convertHtmlToExport.js';
+import uniqueIdForFile from './methods/uniqueIdForFile.js';
 export default function Mesa(componentsSource) {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource();
     let cssSplit = Promise.resolve({ componentsWithoutStyle: {}, styles: {}, scripts: {} });
@@ -27,6 +25,7 @@ export default function Mesa(componentsSource) {
     let viteConfig;
     let mainHtmls = new Map();
     const entryHtmlFiles = new Set();
+    const mesaStylesFolder = "mesa-styles";
     let isDev = false;
     async function processAndInjectCss(html) {
         const { componentsWithoutStyle, styles, scripts } = await cssSplit;
@@ -40,6 +39,7 @@ export default function Mesa(componentsSource) {
     }
     const processPath = process.cwd();
     let hasCssFileUpdates = false;
+    const fileIdLength = 5;
     async function getCssForEntryName(entryName, styles, components) {
         const html = Array.from(mainHtmls.entries()).find(x => {
             return x[0].endsWith(`${entryName}.html`);
@@ -72,7 +72,7 @@ export default function Mesa(componentsSource) {
         },
         resolveId(id) {
             if (id.endsWith(VIRTUAL_CSS_ID)) {
-                const filename = id.slice(0, id.length - VIRTUAL_CSS_ID.length);
+                const filename = id.slice(0, id.length - VIRTUAL_CSS_ID.length - fileIdLength);
                 return filename + VIRTUAL_CSS_ID;
             }
             if (id === HMR_HANDLER_ID) {
@@ -101,6 +101,7 @@ export default function Mesa(componentsSource) {
             }
         },
         transformIndexHtml: {
+            order: "pre",
             async handler(html, p) {
                 mainHtmls.set(p.path, html);
                 const tagsUsedInHtml = await getTagsUsedInHtml(html, components);
@@ -109,14 +110,20 @@ export default function Mesa(componentsSource) {
                 const tags = [];
                 // We also want to add it if is dev (as we might need to reload it during hmr)
                 if (tagsInMainHasStyle || isDev) {
-                    // Remove extension
-                    let filenameExcludingExtension = getFileName(p.filename);
+                    let filenameExcludingExtension = uniqueIdForFile(`${getFileName(p.filename)}${VIRTUAL_CSS_ID}`, fileIdLength);
+                    let path = `/${filenameExcludingExtension}`;
+                    if (isDev) {
+                        path += `?t=${Date.now()}`;
+                    }
+                    else {
+                        path = "/" + mesaStylesFolder + path;
+                    }
                     tags.push({
                         tag: "link",
                         injectTo: "head",
                         attrs: {
                             rel: "stylesheet",
-                            href: `/${filenameExcludingExtension}${VIRTUAL_CSS_ID}?t=${Date.now()}`
+                            href: path
                         }
                     });
                 }
@@ -184,56 +191,32 @@ export default function Mesa(componentsSource) {
             order: "post",
             async handler(_) {
                 const { styles, componentsWithoutStyle } = await cssSplit;
-                const tagsUsedInMain = await getTagsUsedInHtml(await Promise.all(mainHtmls.values()), componentsWithoutStyle);
-                let stylesUsedInMain = [];
-                for (const tag of tagsUsedInMain) {
-                    const style = styles[tag];
-                    if (style) {
-                        stylesUsedInMain.push(style);
+                // 1 - Create the css file for styles used by components in each entry html file
+                for (const [mainHtmlPath, mainHtml] of mainHtmls) {
+                    const tagsUsedInMain = await getTagsUsedInHtml(await mainHtml, componentsWithoutStyle);
+                    let stylesUsedInMain = [];
+                    for (const tag of tagsUsedInMain) {
+                        const style = styles[tag];
+                        if (style) {
+                            stylesUsedInMain.push(style);
+                        }
                     }
-                }
-                // Create the style file for the main index.html
-                if (Object.keys(tagsUsedInMain).length > 0) {
+                    if (stylesUsedInMain.length == 0)
+                        continue;
+                    let filenameExcludingExtension = uniqueIdForFile(`${getFileName(mainHtmlPath)}${VIRTUAL_CSS_ID}`, fileIdLength);
                     try {
                         this.emitFile({
                             type: 'asset',
-                            fileName: VIRTUAL_CSS_ID,
+                            fileName: mesaStylesFolder + "/" + filenameExcludingExtension,
                             source: Object.values(stylesUsedInMain).join("\n")
                         });
-                        log(`\n ✅ Styles injected for main files`);
+                        log(`\n ✅ Styles injected for ` + mainHtmlPath);
                     }
                     catch (err) {
                         log(`\n ❌ Failed to process main HTML entry`, "error");
                         console.error(err);
                     }
                 }
-                let spinner = ora(logText("🔄 Processing bundle...")).start();
-                const distDir = viteConfig.build?.outDir || 'dist'; // Default Vite output directory
-                // Ensure output folder exists
-                if (!fs.existsSync(distDir)) {
-                    log('⚠️ Build directory does not exist. Skipping post-processing.', "warn");
-                    return;
-                }
-                const processHtmlFiles = async (dir) => {
-                    const children = await fsPromises.readdir(dir);
-                    await Promise.all(children.map(async (file) => {
-                        const filePath = path.join(dir, file);
-                        if ((await fsPromises.stat(filePath)).isDirectory()) {
-                            await processHtmlFiles(filePath);
-                        }
-                        else if (filePath.endsWith('.html')) {
-                            let html = await fsPromises.readFile(filePath, 'utf-8');
-                            this.emitFile({
-                                type: "asset",
-                                fileName: path.relative(distDir, filePath),
-                                source: await processAndInjectCss(html)
-                            });
-                        }
-                    }));
-                };
-                // Start processing
-                await processHtmlFiles(distDir);
-                spinner.succeed("Bundle fully processed");
             },
         },
         async handleHotUpdate(ctx) {
