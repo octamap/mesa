@@ -327,7 +327,8 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                                 const tags = await getTagsUsedInHtml(html, components)
                                 if (tags.includes(componentName)) {
                                     // We need to update the style file, not the style blocks 
-                                    const filePath = "/" + getFileName(entry) + VIRTUAL_CSS_ID
+                                    const newFileName = uniqueIdForFile(`${getFileName(entry)}${VIRTUAL_CSS_ID}`, fileIdLength)
+                                    const filePath = "/" + newFileName
                                     hasCssFileUpdates = true
                                     server.ws.send({
                                         type: "custom",
@@ -376,8 +377,8 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             // --- The key middleware: transform any requested .html file (except the index) on the fly ---
             server.middlewares.use(async (req, res, next) => {
                 if (req.method !== 'GET' || !req.url?.endsWith('.html')) {
-                    if (hasCssFileUpdates && req.url && req.url.includes(VIRTUAL_CSS_ID)) {
-                        const indexOfMesaCss = req.url.indexOf(VIRTUAL_CSS_ID)
+                    if (hasCssFileUpdates && req.url?.includes(".css") && req.url && req.url.includes("mesa")) {
+                        const indexOfMesaCss = req.url.indexOf("mesa-")
                         const fileName = req.url.slice(0, indexOfMesaCss)
                         const { componentsWithoutStyle, styles } = await cssSplit
                         const css = await getCssForEntryName(fileName, styles, componentsWithoutStyle)
