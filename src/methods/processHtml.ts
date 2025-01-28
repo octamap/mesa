@@ -9,6 +9,7 @@ import SyntaxCoding from "../helpers/SyntaxCoding.js";
 import { ViteDevServer } from "vite";
 import path from "path"
 import { stat } from "fs/promises"
+import setAttr from "./setAttr.js";
 
 // Processes HTML with provided components
 // options
@@ -61,6 +62,7 @@ export default async function processHtml(html: string, components: ComponentsMa
         const elements = parent ? getAttributesOfChildElements(parent) : [];
         const defaultAttributes = parent ? Array.from(parent.attributes) : []
         let parentInnerHtml = parent?.innerHTML.trim() 
+
         if ((parentInnerHtml?.length ?? 0) == 0) parentInnerHtml = undefined;
         if ((elements.length > 0) || defaultAttributes.length > 0 || parentInnerHtml) {
             const compiledContentDom = new JSDOM(`<div>${SyntaxCoding.decode(compiledContent)}</div>`);
@@ -91,7 +93,7 @@ export default async function processHtml(html: string, components: ComponentsMa
                         compiledElement.removeAttribute(current)
                     }
                     for (const attribute of element.attributes) {
-                        compiledElement.setAttribute(attribute.name, attribute.value);
+                        setAttr(attribute, compiledElement)
                     }
                     if (element.innerHtml.trim().length > 0) {
                         compiledElement.innerHTML = element.innerHtml
@@ -110,7 +112,7 @@ export default async function processHtml(html: string, components: ComponentsMa
                 if (defaultElment) {
                     defaultElment.removeAttribute('#default');
                     for (const attribute of defaultAttributes) {
-                        defaultElment.setAttribute(attribute.name, attribute.value)
+                     setAttr(attribute, defaultElment)
                     }
                 }
             }

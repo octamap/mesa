@@ -7,6 +7,7 @@ import setInnerHTML from "./inner-html/setInnerHtml.js";
 import SyntaxCoding from "../helpers/SyntaxCoding.js";
 import path from "path";
 import { stat } from "fs/promises";
+import setAttr from "./setAttr.js";
 // Processes HTML with provided components
 // options
 // - parentModule: The module that should be set as parent to the components within the html 
@@ -82,7 +83,7 @@ export default async function processHtml(html, components, options) {
                         compiledElement.removeAttribute(current);
                     }
                     for (const attribute of element.attributes) {
-                        compiledElement.setAttribute(attribute.name, attribute.value);
+                        setAttr(attribute, compiledElement);
                     }
                     if (element.innerHtml.trim().length > 0) {
                         compiledElement.innerHTML = element.innerHtml;
@@ -101,7 +102,7 @@ export default async function processHtml(html, components, options) {
                 if (defaultElment) {
                     defaultElment.removeAttribute('#default');
                     for (const attribute of defaultAttributes) {
-                        defaultElment.setAttribute(attribute.name, attribute.value);
+                        setAttr(attribute, defaultElment);
                     }
                 }
             }
