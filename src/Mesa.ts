@@ -100,7 +100,6 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             }
             return null;
         },
-
         async load(id) {
             if (id.normalize("NFC").startsWith(`/${HMR_HANDLER_ID.normalize("NFC")}`)) {
                 const __filename = fileURLToPath(import.meta.url);

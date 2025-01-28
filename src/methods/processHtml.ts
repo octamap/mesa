@@ -131,7 +131,7 @@ export default async function processHtml(html: string, components: ComponentsMa
     const textLinks = (await Promise.all(mondoTextsDirectoryPaths)).filter(x => x != null)
     if (textLinks.length) {
         const linksText = textLinks.map(x => {
-            return `<link rel="texts" href="${x}">`
+            return `<link rel="text" href="${x}">`
         }).join("\n")
         html = insertIntoHtml(html, linksText)
     }
