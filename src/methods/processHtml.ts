@@ -10,6 +10,7 @@ import { ViteDevServer } from "vite";
 import path from "path"
 import { stat } from "fs/promises"
 import setAttr from "./setAttr.js";
+import setSlot from "./setSlot.js";
 
 // Processes HTML with provided components
 // options
@@ -96,15 +97,17 @@ export default async function processHtml(html: string, components: ComponentsMa
                         setAttr(attribute, compiledElement)
                     }
                     if (element.innerHtml.trim().length > 0) {
-                        compiledElement.innerHTML = element.innerHtml
+                        setSlot(compiledElement, element.innerHtml)
+                        compiledElement.removeAttribute("m-slot")
                     }
                 }
             }
             if (matchingElements == 0 && innerHtml) {
                 // The user has not specified slots. The user has specified what should be put in the default slot
-                const defaultElment = compiledContentElements.find(x => x.hasAttribute(`#default`)) ?? rootElementOfCompiled
-                if (defaultElment) {
-                    defaultElment.innerHTML = innerHtml
+                const defaultElement = compiledContentElements.find(x => x.hasAttribute(`#default`)) ?? rootElementOfCompiled
+                if (defaultElement) {
+                    setSlot(defaultElement, innerHtml)
+                    defaultElement.removeAttribute("m-slot")
                 }
             }
             if (defaultAttributes.length > 0) {
