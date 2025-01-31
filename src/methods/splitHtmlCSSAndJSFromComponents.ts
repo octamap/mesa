@@ -7,6 +7,7 @@ export default async function splitHtmlCSSAndJSFromComponents(components: Compon
     const componentsWithoutStyle: ComponentsMap = {}
     const styles: Record<string, string> = {}
     const scripts: Record<string, string> = {}
+    const tagNames = Object.keys(components)
     await Promise.all(Object.entries(components).map(async ([key, source]) => {
         const html = await getHtmlForSource(source)
         if (!html) {
@@ -14,7 +15,7 @@ export default async function splitHtmlCSSAndJSFromComponents(components: Compon
             return;
         }
 
-        const [cleanHtml, style, js] = splitHtmlCSSAndJS(html.data, html.path)
+        const [cleanHtml, style, js] = splitHtmlCSSAndJS(html.data, tagNames, html.path)
         if (style && style.trim().length > 0) {
             styles[key] = style
         }

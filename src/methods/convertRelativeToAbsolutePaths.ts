@@ -1,8 +1,10 @@
 import * as cheerio from 'cheerio';
 import path from "path"
+import convertToNonSelfClosing from './convertToNonSelfClosing.js';
 
-export default function convertRelativeToAbsolutePaths(html: string, htmlFilePath: string) {
-    if (!(html.includes(`".`) && (html.includes(`link`) || html.includes("script")))) return html;
+export default function convertRelativeToAbsolutePaths(html: string, htmlFilePath: string, allTagNames: string[]) {
+    if (!((html.includes(`".`) || html.includes("`.") || html.includes("'.")) && (html.includes(`link`) || html.includes("script")))) return html;
+    html = convertToNonSelfClosing(html, allTagNames)
     const dirPath = path.dirname(htmlFilePath)
     return updateLinks(html, relativePath => {
         return path.join(dirPath, relativePath)

@@ -1,11 +1,12 @@
 import convertRelativeToAbsolutePaths from "./convertRelativeToAbsolutePaths.js";
-export default function splitHtmlCSSAndJS(input, inputFilePath) {
+export default function splitHtmlCSSAndJS(input, allTagNames, inputFilePath) {
     try {
-        if (inputFilePath) {
-            input = convertRelativeToAbsolutePaths(input, inputFilePath);
-        }
-        if (!input.includes("<style>") && !input.includes("<script"))
+        if (!input.includes("<style>") && !input.includes("<script")) {
+            if (inputFilePath) {
+                input = convertRelativeToAbsolutePaths(input, inputFilePath, allTagNames);
+            }
             return [input, null, null];
+        }
         let isScriptLinkEncoded = false;
         if (input.includes("<script") && input.includes("src")) {
             input = input.replaceAll(/<script\b([^>]*)\bsrc\s*=\s*(['"])(.*?)\2([^>]*)>(.*?)<\/script>/g, '<mesa-link-script$1src=$2$3$2$4>$5</mesa-link-script>');
@@ -39,9 +40,15 @@ export default function splitHtmlCSSAndJS(input, inputFilePath) {
         if (isScriptLinkEncoded) {
             html = html.replaceAll("mesa-link-script", "script");
         }
+        if (inputFilePath) {
+            html = convertRelativeToAbsolutePaths(html, inputFilePath, allTagNames);
+        }
         return [html, css, js];
     }
     catch {
+        if (inputFilePath) {
+            input = convertRelativeToAbsolutePaths(input, inputFilePath, allTagNames);
+        }
         return [input, null, null];
     }
 }

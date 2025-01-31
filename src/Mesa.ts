@@ -79,6 +79,9 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             hasMondo = (resolvedConfig as any).hasMondo
             isDev = viteConfig.command !== 'build'
             cssSplit = splitHtmlCSSAndJSFromComponents(components)
+            cssSplit.then(x => {
+                console.log(x.componentsWithoutStyle["section-roadmap"])
+            })
             Object.values(getHtmlInputsOfViteInput(viteConfig.build.rollupOptions.input)).forEach(x => {
                 entryHtmlFiles.add(x)
             })
@@ -205,7 +208,9 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 if (entryHtmlFiles.has(id)) {
                     return;
                 }
+    
                 let { html, componentsUsed } = await processAndInjectCss(code)
+             
                 html = isRaw ? convertHtmlToExport(html) : html
                 for (const tag of componentsUsed) {
                     const source = components[tag]
@@ -294,7 +299,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                     const oldScript = await MesaHMR.get(componentName, "js")
                     const newHtmlAndCss = (async () => {
                         const data = await getData()
-                        const [html, css, js] = splitHtmlCSSAndJS(data, file)
+                        const [html, css, js] = splitHtmlCSSAndJS(data, Object.keys(components), file)
                         const resolvedCssSplit = await cssSplit
                         resolvedCssSplit.componentsWithoutStyle[componentName] = { type: "raw", html } 
                         if (css) {
@@ -362,7 +367,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                             }
                         })
                     }
-                    if (newHtml == oldHtml) return;
+                    if (newHtml == oldHtml) return []
                 } 
             }
     

@@ -5,13 +5,14 @@ export default async function splitHtmlCSSAndJSFromComponents(components) {
     const componentsWithoutStyle = {};
     const styles = {};
     const scripts = {};
+    const tagNames = Object.keys(components);
     await Promise.all(Object.entries(components).map(async ([key, source]) => {
         const html = await getHtmlForSource(source);
         if (!html) {
             componentsWithoutStyle[key] = source;
             return;
         }
-        const [cleanHtml, style, js] = splitHtmlCSSAndJS(html.data, html.path);
+        const [cleanHtml, style, js] = splitHtmlCSSAndJS(html.data, tagNames, html.path);
         if (style && style.trim().length > 0) {
             styles[key] = style;
         }

@@ -66,6 +66,9 @@ export default function Mesa(componentsSource) {
             hasMondo = resolvedConfig.hasMondo;
             isDev = viteConfig.command !== 'build';
             cssSplit = splitHtmlCSSAndJSFromComponents(components);
+            cssSplit.then(x => {
+                console.log(x.componentsWithoutStyle["section-roadmap"]);
+            });
             Object.values(getHtmlInputsOfViteInput(viteConfig.build.rollupOptions.input)).forEach(x => {
                 entryHtmlFiles.add(x);
             });
@@ -277,7 +280,7 @@ export default function Mesa(componentsSource) {
                     const oldScript = await MesaHMR.get(componentName, "js");
                     const newHtmlAndCss = (async () => {
                         const data = await getData();
-                        const [html, css, js] = splitHtmlCSSAndJS(data, file);
+                        const [html, css, js] = splitHtmlCSSAndJS(data, Object.keys(components), file);
                         const resolvedCssSplit = await cssSplit;
                         resolvedCssSplit.componentsWithoutStyle[componentName] = { type: "raw", html };
                         if (css) {
@@ -347,7 +350,7 @@ export default function Mesa(componentsSource) {
                         });
                     }
                     if (newHtml == oldHtml)
-                        return;
+                        return [];
                 }
             }
             server.ws.send({
