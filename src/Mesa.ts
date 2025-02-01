@@ -79,9 +79,6 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             hasMondo = (resolvedConfig as any).hasMondo
             isDev = viteConfig.command !== 'build'
             cssSplit = splitHtmlCSSAndJSFromComponents(components)
-            cssSplit.then(x => {
-                console.log(x.componentsWithoutStyle["section-roadmap"])
-            })
             Object.values(getHtmlInputsOfViteInput(viteConfig.build.rollupOptions.input)).forEach(x => {
                 entryHtmlFiles.add(x)
             })
