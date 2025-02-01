@@ -1,10 +1,11 @@
+import createComparisonHash from "./createComparisonHash.js";
 const fileIds = {};
-export default function uniqueIdForFile(file, length) {
+export default function uniqueIdForFile(file, length, getContent) {
     const id = fileIds[file];
     if (id) {
         return id;
     }
-    const newId = generateRandomId(length);
+    const newId = createComparisonHash(getContent());
     // Remove extension and append the new ID
     const split = file.split(".");
     if (split.length === 1) {
@@ -18,13 +19,4 @@ export default function uniqueIdForFile(file, length) {
     // Store the ID for the file
     fileIds[file] = newFileName;
     return newFileName;
-}
-function generateRandomId(length) {
-    const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        const randomIndex = Math.floor(Math.random() * characters.length);
-        result += characters[randomIndex];
-    }
-    return result;
 }

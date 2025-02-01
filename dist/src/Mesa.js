@@ -118,7 +118,17 @@ export default function Mesa(componentsSource) {
                 const tags = [];
                 // We also want to add it if is dev (as we might need to reload it during hmr)
                 if (tagsInMainHasStyle || isDev) {
-                    let filenameExcludingExtension = uniqueIdForFile(`${getFileName(p.filename)}${VIRTUAL_CSS_ID}`, fileIdLength);
+                    const { styles } = await cssSplit;
+                    let filenameExcludingExtension = uniqueIdForFile(`${getFileName(p.filename)}${VIRTUAL_CSS_ID}`, fileIdLength, () => {
+                        let stylesUsedInMain = [];
+                        for (const tag of tagsUsedInHtml) {
+                            const style = styles[tag];
+                            if (style) {
+                                stylesUsedInMain.push(style);
+                            }
+                        }
+                        return Object.values(stylesUsedInMain).join("\n");
+                    });
                     let path = `/${filenameExcludingExtension}`;
                     if (isDev) {
                         path += `?t=${Date.now()}`;
@@ -223,12 +233,15 @@ export default function Mesa(componentsSource) {
                     }
                     if (stylesUsedInMain.length == 0)
                         continue;
-                    let filenameExcludingExtension = uniqueIdForFile(`${getFileName(mainHtmlPath)}${VIRTUAL_CSS_ID}`, fileIdLength);
+                    const newStyleData = Object.values(stylesUsedInMain).join("\n");
+                    let filenameExcludingExtension = uniqueIdForFile(`${getFileName(mainHtmlPath)}${VIRTUAL_CSS_ID}`, fileIdLength, () => {
+                        return newStyleData;
+                    });
                     try {
                         this.emitFile({
                             type: 'asset',
                             fileName: mesaStylesFolder + "/" + filenameExcludingExtension,
-                            source: Object.values(stylesUsedInMain).join("\n")
+                            source: newStyleData
                         });
                         log(`\n ✅ Styles injected for ` + mainHtmlPath);
                     }
@@ -311,7 +324,17 @@ export default function Mesa(componentsSource) {
                                 const tags = await getTagsUsedInHtml(html, components);
                                 if (tags.includes(componentName)) {
                                     // We need to update the style file, not the style blocks 
-                                    const newFileName = uniqueIdForFile(`${getFileName(entry)}${VIRTUAL_CSS_ID}`, fileIdLength);
+                                    const resolvedCssSplit = await cssSplit;
+                                    const newFileName = uniqueIdForFile(`${getFileName(entry)}${VIRTUAL_CSS_ID}`, fileIdLength, () => {
+                                        let stylesUsedInMain = [];
+                                        for (const tag of tags) {
+                                            const style = resolvedCssSplit.styles[tag];
+                                            if (style) {
+                                                stylesUsedInMain.push(style);
+                                            }
+                                        }
+                                        return Object.values(stylesUsedInMain).join("\n");
+                                    });
                                     const filePath = "/" + newFileName;
                                     hasCssFileUpdates = true;
                                     server.ws.send({
