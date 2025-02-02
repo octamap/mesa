@@ -12,23 +12,48 @@ import { stat } from "fs/promises"
 import setAttr from "./setAttr.js";
 import setSlot from "./setSlot.js";
 import log from "../log.js";
+import murmurhash from "murmurhash";
+
 import chalk from "chalk"
+
+const cached = new Map<string, Promise<{ html: string, componentsUsed: string[] }>>()
+
+type Options = { identifier?: string, caller?: string, server?: ViteDevServer, hasMondo?: boolean, originalComponents?: ComponentsMap }
 
 // Processes HTML with provided components
 // options
 // - parentModule: The module that should be set as parent to the components within the html 
 // - server: The server to use for updating module graph
 // - originalComponents: Helps getHtmlForSource in figuring out the original file path of the component (necessary to create modules)
-export default async function processHtml(html: string, components: ComponentsMap, options?: { identifier?: string, caller?: string, server?: ViteDevServer, hasMondo?: boolean, originalComponents?: ComponentsMap }): Promise<{ html: string, componentsUsed: string[] }> {
+export default async function processHtml(html: string, components: ComponentsMap, options?: Options): Promise<{ html: string, componentsUsed: string[] }> {
+    const start = Date.now()
     const tagNames = Object.keys(components)
+    const shortHash = murmurhash.v3(html).toString(36).slice(0, 4);
+    const key = `${options?.identifier ?? "uknown"}-${tagNames.length}-${html.length}-${shortHash}`
+    const existing = cached.get(key)
+    if (existing) {
+        const caller = options?.caller ? ` (caller: ${options.caller})` : ``
+        log(`Processing ${chalk.blue(options?.identifier ?? `unknown`)} took ${chalk.blue(Date.now() - start)} - from ${chalk.green(`cache`)}${caller}`, "debug")
+        return existing
+    }
+    const newTask = createProcessHtmlTask(html, components, tagNames, options)
+    cached.set(key, newTask)
+    await newTask
+    setTimeout(() => {
+        cached.delete(key)
+    }, 1000 * 20);
+    return newTask
+}
+
+async function createProcessHtmlTask(html: string, components: ComponentsMap, tagNames: string[], options?: Options) {
     const start = Date.now()
     const uncompiledElements = findElementsWithTags(tagNames, html)
     options ??= {}
-
     if (uncompiledElements.length == 0) return { html, componentsUsed: [] }
+
     const allComponentsUsed: string[] = []
     const mondoTextsDirectoryPaths: Promise<string | undefined | null>[] = []
-     
+
     // Compile the new elements
     const compiledContents = await Promise.all(uncompiledElements.map(async uncompiledElement => {
         // Find the html of the component
@@ -65,7 +90,7 @@ export default async function processHtml(html: string, components: ComponentsMa
         const parent = doc.body.firstElementChild;
         const elements = parent ? getAttributesOfChildElements(parent) : [];
         const defaultAttributes = parent ? Array.from(parent.attributes) : []
-        let parentInnerHtml = parent?.innerHTML.trim() 
+        let parentInnerHtml = parent?.innerHTML.trim()
 
         if ((parentInnerHtml?.length ?? 0) == 0) parentInnerHtml = undefined;
         if ((elements.length > 0) || defaultAttributes.length > 0 || parentInnerHtml) {
@@ -118,14 +143,14 @@ export default async function processHtml(html: string, components: ComponentsMa
                 if (defaultElment) {
                     defaultElment.removeAttribute('#default');
                     for (const attribute of defaultAttributes) {
-                     setAttr(attribute, defaultElment)
+                        setAttr(attribute, defaultElment)
                     }
                 }
             }
             if (compiledContentDoc.body.firstElementChild) {
                 compiledContent = SyntaxCoding.encode(compiledContentDoc.body.firstElementChild.innerHTML)
             }
-        } 
+        }
         return compiledContent
     }))
 

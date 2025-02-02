@@ -38,9 +38,10 @@
   "peerDependencies": {},
   "dependencies": {
     "chalk": "^4.1.2",
+    "cheerio": "^1.0.0",
     "jsdom": "^25.0.1",
-    "ora": "^8.1.1",
-        "cheerio": "^1.0.0"
+    "murmurhash": "^2.0.1",
+    "ora": "^8.1.1"
   },
   "devDependencies": {
     "@types/jsdom": "^21.1.7",

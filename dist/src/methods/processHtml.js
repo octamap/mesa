@@ -10,14 +10,34 @@ import { stat } from "fs/promises";
 import setAttr from "./setAttr.js";
 import setSlot from "./setSlot.js";
 import log from "../log.js";
+import murmurhash from "murmurhash";
 import chalk from "chalk";
+const cached = new Map();
 // Processes HTML with provided components
 // options
 // - parentModule: The module that should be set as parent to the components within the html 
 // - server: The server to use for updating module graph
 // - originalComponents: Helps getHtmlForSource in figuring out the original file path of the component (necessary to create modules)
 export default async function processHtml(html, components, options) {
+    const start = Date.now();
     const tagNames = Object.keys(components);
+    const shortHash = murmurhash.v3(html).toString(36).slice(0, 4);
+    const key = `${options?.identifier ?? "uknown"}-${tagNames.length}-${html.length}-${shortHash}`;
+    const existing = cached.get(key);
+    if (existing) {
+        const caller = options?.caller ? ` (caller: ${options.caller})` : ``;
+        log(`Processing ${chalk.blue(options?.identifier ?? `unknown`)} took ${chalk.blue(Date.now() - start)} - from ${chalk.green(`cache`)}${caller}`, "debug");
+        return existing;
+    }
+    const newTask = createProcessHtmlTask(html, components, tagNames, options);
+    cached.set(key, newTask);
+    await newTask;
+    setTimeout(() => {
+        cached.delete(key);
+    }, 1000 * 20);
+    return newTask;
+}
+async function createProcessHtmlTask(html, components, tagNames, options) {
     const start = Date.now();
     const uncompiledElements = findElementsWithTags(tagNames, html);
     options ??= {};
