@@ -1,7 +1,8 @@
+import DebugMode from './DebugMode.js';
 import logText from './logText.js';
 
-export default function log(text: string, type?: "warn" | "error") {
-    const methods = { "warn": console.warn, "error": console.error }
+export default function log(text: string, type?: "warn" | "error" | "debug") {
+    const methods = { "warn": console.warn, "error": console.error, "debug": console.log }
     const method = type ? methods[type] : console.log
     const suffix = (() => {
         switch (type) {
@@ -12,5 +13,6 @@ export default function log(text: string, type?: "warn" | "error") {
         }
         return ""
     })()
+    if (!DebugMode.Enabled && type == "debug") return;
     method(logText(`${suffix}${text}`))
 }

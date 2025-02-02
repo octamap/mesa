@@ -17,9 +17,13 @@ import convertExportToHtml from './universal/js-html/convertExportToHtml.js';
 import convertHtmlToExport from './universal/js-html/convertHtmlToExport.js';
 import uniqueIdForFile from './methods/uniqueIdForFile.js';
 import getAbsolutePathOfSource from './methods/getAbsolutePathOfSource.js';
-export default function Mesa(componentsSource) {
+import DebugMode from './DebugMode.js';
+export default function Mesa(componentsSource, options) {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource();
     let cssSplit = Promise.resolve({ componentsWithoutStyle: {}, styles: {}, scripts: {} });
+    if (options?.debugMode) {
+        DebugMode.Enabled = true;
+    }
     const VIRTUAL_CSS_ID = 'mesa.css';
     const HMR_HANDLER_ID = 'virtual:mesa-hmr.js';
     const RESOLVED_HMR_HANDLER_ID = '\0' + HMR_HANDLER_ID;
@@ -30,10 +34,12 @@ export default function Mesa(componentsSource) {
     let isDev = false;
     let devServer;
     let hasMondo = false;
-    async function processAndInjectCss(html) {
+    async function processAndInjectCss(html, identifier, caller) {
         const { componentsWithoutStyle, styles, scripts } = await cssSplit;
         const tagsUsedInMain = await getTagsUsedInHtml(await Promise.all(mainHtmls.values()), componentsWithoutStyle);
         const processed = await processHtmlAndInjectCss(html, componentsWithoutStyle, styles, scripts, {
+            identifier,
+            caller: caller,
             skipInjectOfComponents: tagsUsedInMain,
             injectWithComments: isDev,
             server: devServer,
@@ -179,7 +185,7 @@ export default function Mesa(componentsSource) {
                     });
                 }
                 const { componentsWithoutStyle } = await cssSplit;
-                html = await processHtml(html, componentsWithoutStyle, { server: p.server, hasMondo, originalComponents: components }).then(x => x.html);
+                html = await processHtml(html, componentsWithoutStyle, { caller: "transformIndexHtml", identifier: p.path, server: p.server, hasMondo, originalComponents: components }).then(x => x.html);
                 html = await compileMesaJs(html);
                 return {
                     html,
@@ -201,7 +207,7 @@ export default function Mesa(componentsSource) {
                 if (entryHtmlFiles.has(id)) {
                     return;
                 }
-                let { html, componentsUsed } = await processAndInjectCss(code);
+                let { html, componentsUsed } = await processAndInjectCss(code, id, "transform");
                 html = isRaw ? convertHtmlToExport(html) : html;
                 for (const tag of componentsUsed) {
                     const source = components[tag];
@@ -220,6 +226,8 @@ export default function Mesa(componentsSource) {
         generateBundle: {
             order: "post",
             async handler(_) {
+                if (isDev)
+                    return;
                 const { styles, componentsWithoutStyle } = await cssSplit;
                 // 1 - Create the css file for styles used by components in each entry html file
                 for (const [mainHtmlPath, mainHtml] of mainHtmls) {

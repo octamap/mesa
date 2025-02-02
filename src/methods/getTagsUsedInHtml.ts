@@ -28,7 +28,7 @@ export default async function getTagsUsedInHtml(newHtmls: string | string[] | Ar
                 all.add(tag)
                 const innerData = await getHtmlForSource(component)
                 if (!innerData) return;
-                iterate(innerData.data)
+                await iterate(innerData.data)
             }))
         }
         await Promise.all(newHtmlsArray.map(x => iterate(x)))

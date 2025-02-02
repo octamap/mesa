@@ -9,6 +9,8 @@ import path from "path";
 import { stat } from "fs/promises";
 import setAttr from "./setAttr.js";
 import setSlot from "./setSlot.js";
+import log from "../log.js";
+import chalk from "chalk";
 // Processes HTML with provided components
 // options
 // - parentModule: The module that should be set as parent to the components within the html 
@@ -16,6 +18,7 @@ import setSlot from "./setSlot.js";
 // - originalComponents: Helps getHtmlForSource in figuring out the original file path of the component (necessary to create modules)
 export default async function processHtml(html, components, options) {
     const tagNames = Object.keys(components);
+    const start = Date.now();
     const uncompiledElements = findElementsWithTags(tagNames, html);
     options ??= {};
     if (uncompiledElements.length == 0)
@@ -35,7 +38,7 @@ export default async function processHtml(html, components, options) {
         // We exclude the current tag to prevent infinite loops in case the component references itself
         const componentsExcludingCurrent = { ...components };
         delete componentsExcludingCurrent[uncompiledElement.tag];
-        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent, { ...options });
+        const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent, { ...options, identifier: uncompiledElement.tag });
         compiledContent = processedComponentHtml;
         allComponentsUsed.push(...componentsUsed);
         allComponentsUsed.push(uncompiledElement.tag);
@@ -43,7 +46,7 @@ export default async function processHtml(html, components, options) {
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to);
         let innerHtml = getInnerHTML(uncompiledContent);
         if (innerHtml) {
-            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, { ...options });
+            const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, { ...options, identifier: "Inner html of " + uncompiledElement.tag });
             allComponentsUsed.push(...componentsUsed);
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml);
             innerHtml = processedInnerHtml;
@@ -128,6 +131,8 @@ export default async function processHtml(html, components, options) {
         }).join("\n");
         html = insertIntoHtml(html, linksText);
     }
+    const caller = options.caller ? ` (caller: ${options.caller})` : ``;
+    log(`Processing ${chalk.blue(options.identifier ?? `unknown`)} took ${chalk.blue(Date.now() - start)}${caller}`, "debug");
     return { html: html, componentsUsed: allComponentsUsed };
 }
 async function findTextsFolder(filePath) {

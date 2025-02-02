@@ -8,7 +8,7 @@ export default async function processHtmlAndInjectCss(
     components: ComponentsMap,
     styles: Record<string, string>,
     scripts: Record<string, string>,
-    options: { skipInjectOfComponents: string[], server?: ViteDevServer, hasMondo?: boolean, originalComponents?: ComponentsMap, injectWithComments?: boolean }) {
+    options: { identifier?: string, caller?: string, skipInjectOfComponents: string[], server?: ViteDevServer, hasMondo?: boolean, originalComponents?: ComponentsMap, injectWithComments?: boolean }) {
     
     // Process the html
     const response = await processHtml(html, components, {...options});
