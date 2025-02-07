@@ -516,14 +516,10 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                     server.watcher.add(newFile)
                     filesBeingWatched.push(newFile)
                 }
+                console.log(server.watcher.getWatched())
             }
 
             reloadFilesWatched()
-
-            setInterval(() => {
-                reloadComponents()
-            }, 2000);
-
 
             function clearCache(file: string) {
                 ProcessHtmlCache.IsNotModified.delete(file)

@@ -490,11 +490,9 @@ export default function Mesa(componentsSource, options) {
                     server.watcher.add(newFile);
                     filesBeingWatched.push(newFile);
                 }
+                console.log(server.watcher.getWatched());
             }
             reloadFilesWatched();
-            setInterval(() => {
-                reloadComponents();
-            }, 2000);
             function clearCache(file) {
                 ProcessHtmlCache.IsNotModified.delete(file);
                 const componentIdentifier = Object.entries(components).find(([key, value]) => {

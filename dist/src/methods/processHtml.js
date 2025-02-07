@@ -24,7 +24,6 @@ export default async function processHtml(html, components, options) {
     const shortHash = murmurhash.v3(html).toString(36).slice(0, 4);
     let key = `${options?.identifier ?? "uknown"}-${tagNames.length}-${html.length}-${shortHash}`;
     if (options?.constructionHash) {
-        console.log("construction for ", options.identifier, " ", options.constructionHash);
         key += `-${options.constructionHash}`;
     }
     if (options?.parentPath) {
