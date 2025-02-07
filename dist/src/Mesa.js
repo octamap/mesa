@@ -18,6 +18,7 @@ import convertHtmlToExport from './universal/js-html/convertHtmlToExport.js';
 import uniqueIdForFile from './methods/uniqueIdForFile.js';
 import getAbsolutePathOfSource from './methods/getAbsolutePathOfSource.js';
 import DebugMode from './DebugMode.js';
+import { ProcessHtmlCache } from './methods/ProcessHtmlCache.js';
 export default function Mesa(componentsSource, options) {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource();
     let cssSplit = Promise.resolve({ componentsWithoutStyle: {}, styles: {}, scripts: {} });
@@ -494,12 +495,33 @@ export default function Mesa(componentsSource, options) {
             setInterval(() => {
                 reloadComponents();
             }, 2000);
+            function clearCache(file) {
+                ProcessHtmlCache.IsNotModified.delete(file);
+                const componentIdentifier = Object.entries(components).find(([key, value]) => {
+                    if (typeof value == "string") {
+                        return file.includes(value);
+                    }
+                    if ("type" in value) {
+                        if (value.type == "absolute") {
+                            return value.path == file;
+                        }
+                    }
+                })?.[0];
+                if (componentIdentifier) {
+                    ProcessHtmlCache.IsNotModified.delete(componentIdentifier);
+                }
+            }
             // Watch for changes -> reload, as you already do in your snippet
             server.watcher
+                .on("change", (file) => {
+                clearCache(file);
+            })
                 .on('add', (file) => {
+                clearCache(file);
                 onFileStructureChange(file);
             })
                 .on('unlink', (file) => {
+                clearCache(file);
                 onFileStructureChange(file);
             });
         },

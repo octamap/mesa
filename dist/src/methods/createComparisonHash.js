@@ -1,4 +1,4 @@
-import { createHash } from "crypto";
+import murmurhash from "murmurhash";
 export default function createComparisonHash(content) {
-    return createHash("sha1").update(content, "utf8").digest("hex").substring(0, 16);
+    return murmurhash.v3(content).toString(36).slice(0, 4);
 }

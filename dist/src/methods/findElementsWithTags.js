@@ -26,6 +26,7 @@ export default function findElementsWithTags(tags, html) {
                             tag,
                             from: matchIndex,
                             to: matchIndex + fullMatch.length,
+                            text: fullMatch
                         });
                     }
                 }
@@ -40,10 +41,12 @@ export default function findElementsWithTags(tags, html) {
                 if (typeof start === 'number') {
                     // Only record if this closing tag matches the outermost opening tag
                     if (stack.length === 0) {
+                        const end = matchIndex + fullMatch.length;
                         results.push({
                             tag,
                             from: start,
                             to: matchIndex + fullMatch.length,
+                            text: html.slice(start, end)
                         });
                     }
                 }

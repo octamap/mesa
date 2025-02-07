@@ -6,6 +6,8 @@ type Options = {
     server?: ViteDevServer;
     hasMondo?: boolean;
     originalComponents?: ComponentsMap;
+    constructionHash?: string;
+    parentPath?: string;
 };
 export default function processHtml(html: string, components: ComponentsMap, options?: Options): Promise<{
     html: string;
