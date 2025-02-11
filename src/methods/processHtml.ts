@@ -59,7 +59,7 @@ async function createProcessHtmlTask(html: string, components: ComponentsMap, ta
     options ??= {}
     if (uncompiledElements.length == 0) return { html, componentsUsed: [] }
 
-    const allComponentsUsed: string[] = []
+    const allComponentsUsed = new Set<string>()
     const mondoTextsDirectoryPaths: Promise<string | undefined | null>[] = []
 
     const parentPath = (options.parentPath ?? "") + `/${options.identifier ?? `unknown`}`
@@ -81,15 +81,15 @@ async function createProcessHtmlTask(html: string, components: ComponentsMap, ta
         const constructionHash = murmurhash.v3(uncompiledElement.text).toString(36).slice(0, 4);
         const { html: processedComponentHtml, componentsUsed } = await processHtml(compiledContent, componentsExcludingCurrent, { ...options, parentPath, identifier: uncompiledElement.tag, constructionHash })
         compiledContent = processedComponentHtml
-        allComponentsUsed.push(...componentsUsed)
-        allComponentsUsed.push(uncompiledElement.tag)
+        componentsUsed.forEach(x => allComponentsUsed.add(x))
+        allComponentsUsed.add(uncompiledElement.tag)
 
         // Process the html
         let uncompiledContent = html.slice(uncompiledElement.from, uncompiledElement.to)
         let innerHtml = getInnerHTML(uncompiledContent)
         if (innerHtml) {
             const { html: processedInnerHtml, componentsUsed } = await processHtml(innerHtml, components, { ...options, parentPath, constructionHash, identifier: "Inner html of " + uncompiledElement.tag })
-            allComponentsUsed.push(...componentsUsed)
+            componentsUsed.forEach(x =>   allComponentsUsed.add(x))
             uncompiledContent = setInnerHTML(uncompiledContent, processedInnerHtml)
             innerHtml = processedInnerHtml
         }
@@ -180,7 +180,7 @@ async function createProcessHtmlTask(html: string, components: ComponentsMap, ta
     }
     const caller = options.caller ? ` (caller: ${options.caller})` : ``
     log(`Processing ${chalk.blue(options.identifier ?? `unknown`)} took ${chalk.blue(Date.now() - start)}${caller}`, "debug")
-    return { html: html, componentsUsed: allComponentsUsed }
+    return { html: html, componentsUsed: Array.from(allComponentsUsed) }
 }
 
 let cachedTextFolderResults = new Map<string, Promise<boolean>>()
