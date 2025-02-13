@@ -22,14 +22,14 @@ import getAbsolutePathOfSource from './methods/getAbsolutePathOfSource.js';
 import DebugMode from './DebugMode.js';
 import { ProcessHtmlCache } from './methods/ProcessHtmlCache.js';
 
-export default function Mesa(componentsSource: ComponentsMap | (() => ComponentsMap), options?: {debugMode?: boolean}): Plugin {
+export default function Mesa(componentsSource: ComponentsMap | (() => ComponentsMap), options?: { debugMode?: boolean }): Plugin {
     let components = typeof componentsSource == "object" ? componentsSource : componentsSource()
     let cssSplit: Promise<{
         componentsWithoutStyle: ComponentsMap;
         styles: Record<string, string>;
         scripts: Record<string, string>
     }> = Promise.resolve({ componentsWithoutStyle: {}, styles: {}, scripts: {} })
-    
+
     if (options?.debugMode) {
         DebugMode.Enabled = true
     }
@@ -49,7 +49,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
 
     async function processAndInjectCss(html: string, identifier: string, caller: string) {
         const { componentsWithoutStyle, styles, scripts } = await cssSplit
-        const tagsUsedInMain = await getTagsUsedInHtml(await Promise.all(mainHtmls.values()), componentsWithoutStyle) 
+        const tagsUsedInMain = await getTagsUsedInHtml(await Promise.all(mainHtmls.values()), componentsWithoutStyle)
         const processed = await processHtmlAndInjectCss(html, componentsWithoutStyle, styles, scripts, {
             identifier,
             caller: caller,
@@ -59,7 +59,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             hasMondo,
             originalComponents: components
         });
-        return {...processed, html: await compileMesaJs(processed.html) }
+        return { ...processed, html: await compileMesaJs(processed.html) }
     }
     const processPath = process.cwd()
     let hasCssFileUpdates = false;
@@ -95,13 +95,13 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             for (const entryHtmlFile of entryHtmlFiles) {
                 if (fs.existsSync(entryHtmlFile)) {
                     mainHtmls.set(path.relative(process.cwd(), entryHtmlFile), fs.readFileSync(entryHtmlFile, 'utf-8'))
-                } 
+                }
             }
         },
         resolveId(id) {
             if (id.endsWith(VIRTUAL_CSS_ID)) {
                 const filename = id.slice(0, id.length - VIRTUAL_CSS_ID.length - fileIdLength)
-                return filename + VIRTUAL_CSS_ID 
+                return filename + VIRTUAL_CSS_ID
             }
             if (id === HMR_HANDLER_ID) {
                 return RESOLVED_HMR_HANDLER_ID
@@ -137,11 +137,11 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 const tagsUsedInHtml = await getTagsUsedInHtml(html, components)
                 const tagsInMainHasStyle = Object.keys((await cssSplit).styles).some(x => tagsUsedInHtml.includes(x))
                 let scriptsToInject = Object.entries((await cssSplit).scripts).filter(([key]) => tagsUsedInHtml.includes(key))
-                
+
                 const tags: HtmlTagDescriptor[] = []
                 // We also want to add it if is dev (as we might need to reload it during hmr)
                 if (tagsInMainHasStyle || isDev) {
-                    const {styles} = await cssSplit
+                    const { styles } = await cssSplit
                     let filenameExcludingExtension = uniqueIdForFile(`${getFileName(p.filename)}${VIRTUAL_CSS_ID}`, fileIdLength, () => {
                         let stylesUsedInMain: string[] = []
                         for (const tag of tagsUsedInHtml) {
@@ -171,7 +171,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 if (scriptsToInject.length) {
                     if (isDev) {
                         scriptsToInject = scriptsToInject.map(([tag, script]) => {
-                            return [tag,`/*start:${tag}*/\n${script}\n/*end:${tag}*/`]
+                            return [tag, `/*start:${tag}*/\n${script}\n/*end:${tag}*/`]
                         })
                     }
                     tags.push({
@@ -223,9 +223,9 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 if (entryHtmlFiles.has(id)) {
                     return;
                 }
-    
+
                 let { html, componentsUsed } = await processAndInjectCss(code, id, "transform")
-             
+
                 html = isRaw ? convertHtmlToExport(html) : html
                 for (const tag of componentsUsed) {
                     const source = components[tag]
@@ -279,127 +279,128 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
             const { file, read, server } = ctx;
 
             // Check if the file is a CSS or HTML file (or whatever file defines styles for components)
-            if (file.endsWith('.html') || file.endsWith(".svg")) {
-                let cache: Promise<string> | string | undefined
-                async function getData() {
-                    if (cache) return cache
-                    cache = read()
-                    return cache
-                }
+            if (!(file.endsWith('.html') || file.endsWith(".svg"))) {
+                return;
+            }
+            let cache: Promise<string> | string | undefined
+            async function getData() {
+                if (cache) return cache
+                cache = read()
+                return cache
+            }
 
-                // Get file relative to process
-                const relativePath = path.relative(processPath, file)
-                if (mainHtmls.has(relativePath)) {
+            // Get file relative to process
+            const relativePath = path.relative(processPath, file)
+            if (mainHtmls.has(relativePath)) {
 
-                    // The main html has been edited 
-                    const dataPromise = getData()
-                    mainHtmls.set(relativePath, dataPromise)
-                    hasCssFileUpdates = true
-                    server.ws.send({
-                        type: 'full-reload',
-                        path: "*",
-                    });
-                  
-                    return []
-                }
-                
-                // Check if we have this component 
-                const componentName = Object.entries(components).find(([_, value]) => {
-                    if (typeof value == "object") {
-                        if (value.type == "absolute" && value.path == file) {
-                            return true
-                        }
+                // The main html has been edited 
+                const dataPromise = getData()
+                mainHtmls.set(relativePath, dataPromise)
+                hasCssFileUpdates = true
+                server.ws.send({
+                    type: 'full-reload',
+                    path: "*",
+                });
+
+                return []
+            }
+
+            // Check if we have this component 
+            const componentName = Object.entries(components).find(([_, value]) => {
+                if (typeof value == "object") {
+                    if (value.type == "absolute" && value.path == file) {
+                        return true
                     }
-                })?.[0]
+                }
+            })?.[0]
 
-                if (componentName) {
-                    const oldHtml = await MesaHMR.get(componentName, "html")
-                    const oldCss = await MesaHMR.get(componentName, "css")
-                    const oldScript = await MesaHMR.get(componentName, "js")
-                    const newHtmlAndCss = (async () => {
-                        const data = await getData()
-                        const [html, css, js] = splitHtmlCSSAndJS(data, Object.keys(components), file)
-                        const resolvedCssSplit = await cssSplit
-                        resolvedCssSplit.componentsWithoutStyle[componentName] = { type: "raw", html } 
-                        if (css) {
-                            resolvedCssSplit.styles[componentName] = css
-                        } else {
-                            delete resolvedCssSplit.styles[componentName]
-                        }
-                        if (js) {
-                            resolvedCssSplit.scripts[componentName] = js
-                        } else {
-                            delete resolvedCssSplit.scripts[componentName]
-                        }
-                        return [html, css, js]
-                    })();
-                    MesaHMR.save(componentName, newHtmlAndCss.then(x => x[1]), "css")
-                    MesaHMR.save(componentName, newHtmlAndCss.then(x => x[0]), "html")
-                    MesaHMR.save(componentName, newHtmlAndCss.then(x => x[2]), "js")
-                    const newCss = await newHtmlAndCss.then(x => x[1])
-                    const newHtml = await newHtmlAndCss.then(x => x[0])
-                    const newJs = await newHtmlAndCss.then(x => x[2])
+            if (componentName) {
+                const oldHtml = await MesaHMR.get(componentName, "html")
+                const oldCss = await MesaHMR.get(componentName, "css")
+                const oldScript = await MesaHMR.get(componentName, "js")
+                const newHtmlAndCss = (async () => {
+                    const data = await getData()
+                    const [html, css, js] = splitHtmlCSSAndJS(data, Object.keys(components), file)
+                    const resolvedCssSplit = await cssSplit
+                    resolvedCssSplit.componentsWithoutStyle[componentName] = { type: "raw", html }
+                    if (css) {
+                        resolvedCssSplit.styles[componentName] = css
+                    } else {
+                        delete resolvedCssSplit.styles[componentName]
+                    }
+                    if (js) {
+                        resolvedCssSplit.scripts[componentName] = js
+                    } else {
+                        delete resolvedCssSplit.scripts[componentName]
+                    }
+                    return [html, css, js]
+                })();
+                MesaHMR.save(componentName, newHtmlAndCss.then(x => x[1]), "css")
+                MesaHMR.save(componentName, newHtmlAndCss.then(x => x[0]), "html")
+                MesaHMR.save(componentName, newHtmlAndCss.then(x => x[2]), "js")
+                const newCss = await newHtmlAndCss.then(x => x[1])
+                const newHtml = await newHtmlAndCss.then(x => x[0])
+                const newJs = await newHtmlAndCss.then(x => x[2])
 
-                    if (oldCss != newCss) {
-                        // 1 - This style might be within the style file 
-                        const entry = await getCurrentEntry(server)
-                        let cssFileUpdated = false;
-                        if (entry) {
-                            const html = await mainHtmls.get(entry)
-                            if (html) {
-                                // 1 - Get tags used 
-                                const tags = await getTagsUsedInHtml(html, components)
-                                if (tags.includes(componentName)) {
-                                    // We need to update the style file, not the style blocks 
-                                    const resolvedCssSplit = await cssSplit
-                                    const newFileName = uniqueIdForFile(`${getFileName(entry)}${VIRTUAL_CSS_ID}`, fileIdLength, () => {
-                                        let stylesUsedInMain: string[] = []
-                                        for (const tag of tags) {
-                                            const style = resolvedCssSplit.styles[tag]
-                                            if (style) {
-                                                stylesUsedInMain.push(style)
-                                            }
+                if (oldCss != newCss) {
+                    // 1 - This style might be within the style file 
+                    const entry = await getCurrentEntry(server)
+                    let cssFileUpdated = false;
+                    if (entry) {
+                        const html = await mainHtmls.get(entry)
+                        if (html) {
+                            // 1 - Get tags used 
+                            const tags = await getTagsUsedInHtml(html, components)
+                            if (tags.includes(componentName)) {
+                                // We need to update the style file, not the style blocks 
+                                const resolvedCssSplit = await cssSplit
+                                const newFileName = uniqueIdForFile(`${getFileName(entry)}${VIRTUAL_CSS_ID}`, fileIdLength, () => {
+                                    let stylesUsedInMain: string[] = []
+                                    for (const tag of tags) {
+                                        const style = resolvedCssSplit.styles[tag]
+                                        if (style) {
+                                            stylesUsedInMain.push(style)
                                         }
-                                        return Object.values(stylesUsedInMain).join("\n")
-                                    })
-                                    const filePath = "/" + newFileName
-                                    hasCssFileUpdates = true
-                                    server.ws.send({
-                                        type: "custom",
-                                        event: "mesa-css-file-change",
-                                        data: {
-                                            path: filePath
-                                        }
-                                    })
-                                    cssFileUpdated = true
-                                }
+                                    }
+                                    return Object.values(stylesUsedInMain).join("\n")
+                                })
+                                const filePath = "/" + newFileName
+                                hasCssFileUpdates = true
+                                server.ws.send({
+                                    type: "custom",
+                                    event: "mesa-css-file-change",
+                                    data: {
+                                        path: filePath
+                                    }
+                                })
+                                cssFileUpdated = true
                             }
-                        } 
-                        if (!cssFileUpdated) {
-                            server.ws.send({
-                                type: 'custom',
-                                event: 'mesa-style-update',
-                                data: {
-                                    componentName,
-                                    style: newCss,
-                                },
-                            });
                         }
                     }
-                    if (oldScript != newJs) {
+                    if (!cssFileUpdated) {
                         server.ws.send({
-                            type: "custom",
-                            event: "mesa-js-update",
+                            type: 'custom',
+                            event: 'mesa-style-update',
                             data: {
                                 componentName,
-                                js: newJs
-                            }
-                        })
+                                style: newCss,
+                            },
+                        });
                     }
-                    if (newHtml == oldHtml) return []
-                } 
+                }
+                if (oldScript != newJs) {
+                    server.ws.send({
+                        type: "custom",
+                        event: "mesa-js-update",
+                        data: {
+                            componentName,
+                            js: newJs
+                        }
+                    })
+                }
+                if (newHtml == oldHtml) return []
             }
-    
+
             server.ws.send({
                 type: 'full-reload',
                 path: '*',
@@ -422,7 +423,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                         return;
                     }
                 }
-                  return next()
+                return next()
             });
 
             let debounceTimeout: any | undefined
@@ -444,7 +445,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 const oldKeys = Object.keys(old)
                 const newKeys = Object.keys(newMap)
 
-        
+
                 if (oldKeys.length != newKeys.length) {
                     return false;
                 }
@@ -482,8 +483,9 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                     reloadFilesWatched()
                 }
             }
-            
+
             async function onFileStructureChange(file: string) {
+                console.log("reloading file structure", file)
                 reloadComponents()
             }
 
@@ -501,7 +503,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 // Watch the component + HTML files, same as in your snippet.
                 const htmlFiles = getHtmlFiles(process.cwd(), ['node_modules', '.git', 'dist']);
                 const filesToWatch = Array.from(new Set([...componentFiles, ...htmlFiles]))
-                
+
                 // Remove watchers on no longer needed files 
                 filesBeingWatched = filesBeingWatched.filter(x => {
                     if (filesToWatch.includes(x)) {
@@ -551,7 +553,7 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                     clearCache(file)
                     onFileStructureChange(file)
                 })
-            
+
         },
     };
 }
