@@ -21,7 +21,7 @@ export default function findElementsWithTags(
     for (const tag of tags) {
         // Construct a regex pattern for the current tag
         const pattern = new RegExp(
-            `(<${tag}[^>]*?(/)?>)|(</${tag}>)`,
+            `(<${tag}(?=[\\s>/])[^>]*?(\\/?)>)|(</${tag}>)`,
             'gi'
         );
 
