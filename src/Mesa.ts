@@ -484,6 +484,10 @@ export default function Mesa(componentsSource: ComponentsMap | (() => Components
                 }
             }
 
+            setInterval(() => {
+                reloadComponents()
+            }, 1000 * 7);
+
             async function onFileStructureChange(file: string) {
                 console.log("reloading file structure", file)
                 reloadComponents()

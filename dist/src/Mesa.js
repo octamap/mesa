@@ -461,6 +461,9 @@ export default function Mesa(componentsSource, options) {
                     reloadFilesWatched();
                 }
             }
+            setInterval(() => {
+                reloadComponents();
+            }, 1000 * 7);
             async function onFileStructureChange(file) {
                 console.log("reloading file structure", file);
                 reloadComponents();
