@@ -104,6 +104,7 @@ async function createProcessHtmlTask(html: string, components: ComponentsMap, ta
             const defaultAttributes = parent ? Array.from(parent.attributes) : []
             let parentInnerHtml = parent?.innerHTML.trim()
 
+            let did = false
             if ((parentInnerHtml?.length ?? 0) == 0) parentInnerHtml = undefined;
             if ((elements.length > 0) || defaultAttributes.length > 0 || parentInnerHtml) {
                 const compiledContentDom = new JSDOM(`<div>${SyntaxCoding.decode(compiledContent)}</div>`);
@@ -114,7 +115,7 @@ async function createProcessHtmlTask(html: string, components: ComponentsMap, ta
                     // If compiled content has one root element, then this is default by default 
                     const rootChildren = compiledContentDoc.body.firstElementChild?.children ?? []
                     if (rootChildren.length == 1) {
-                        return rootChildren[0]
+                        return compiledContentDoc.body.firstElementChild?.children.item(0) as HTMLElement
                     }
                     return undefined;
                 })()
@@ -144,7 +145,7 @@ async function createProcessHtmlTask(html: string, components: ComponentsMap, ta
                 }
                 if (matchingElements == 0 && innerHtml) {
                     // The user has not specified slots. The user has specified what should be put in the default slot
-                    const defaultElement = compiledContentElements.find(x => x.hasAttribute(`#default`)) ?? rootElementOfCompiled
+                    const defaultElement = compiledContentElements.find(x => x.hasAttribute(`#default`)) ?? rootElementOfCompiled 
                     if (defaultElement) {
                         setSlot(defaultElement, innerHtml)
                         defaultElement.removeAttribute("m-slot")

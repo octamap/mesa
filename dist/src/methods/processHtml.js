@@ -90,6 +90,7 @@ async function createProcessHtmlTask(html, components, tagNames, options) {
             const elements = parent ? getAttributesOfChildElements(parent) : [];
             const defaultAttributes = parent ? Array.from(parent.attributes) : [];
             let parentInnerHtml = parent?.innerHTML.trim();
+            let did = false;
             if ((parentInnerHtml?.length ?? 0) == 0)
                 parentInnerHtml = undefined;
             if ((elements.length > 0) || defaultAttributes.length > 0 || parentInnerHtml) {
@@ -100,7 +101,7 @@ async function createProcessHtmlTask(html, components, tagNames, options) {
                     // If compiled content has one root element, then this is default by default 
                     const rootChildren = compiledContentDoc.body.firstElementChild?.children ?? [];
                     if (rootChildren.length == 1) {
-                        return rootChildren[0];
+                        return compiledContentDoc.body.firstElementChild?.children.item(0);
                     }
                     return undefined;
                 })();
