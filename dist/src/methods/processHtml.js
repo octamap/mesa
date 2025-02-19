@@ -84,17 +84,16 @@ async function createProcessHtmlTask(html, components, tagNames, options) {
                 innerHtml = processedInnerHtml;
             }
             // Apply the attributes set on the uncompiled content to the component html
-            const dom = new JSDOM(`<body>${SyntaxCoding.decode(uncompiledContent)}</body>`);
+            const dom = new JSDOM(`<body>${htmlEncode(SyntaxCoding.decode(uncompiledContent))}</body>`);
             const doc = dom.window.document;
             const parent = doc.body.firstElementChild;
             const elements = parent ? getAttributesOfChildElements(parent) : [];
             const defaultAttributes = parent ? Array.from(parent.attributes) : [];
             let parentInnerHtml = parent?.innerHTML.trim();
-            let did = false;
             if ((parentInnerHtml?.length ?? 0) == 0)
                 parentInnerHtml = undefined;
             if ((elements.length > 0) || defaultAttributes.length > 0 || parentInnerHtml) {
-                const compiledContentDom = new JSDOM(`<div>${SyntaxCoding.decode(compiledContent)}</div>`);
+                const compiledContentDom = new JSDOM(`<div>${htmlEncode(SyntaxCoding.decode(compiledContent))}</div>`);
                 const compiledContentDoc = compiledContentDom.window.document;
                 const compiledContentElements = Array.from(compiledContentDoc.querySelectorAll('*'));
                 const rootElementOfCompiled = (() => {
@@ -146,7 +145,7 @@ async function createProcessHtmlTask(html, components, tagNames, options) {
                     }
                 }
                 if (compiledContentDoc.body.firstElementChild) {
-                    compiledContent = SyntaxCoding.encode(compiledContentDoc.body.firstElementChild.innerHTML);
+                    compiledContent = htmlDecode(SyntaxCoding.encode(compiledContentDoc.body.firstElementChild.innerHTML));
                     compiledContent = compiledContent.replaceAll("mesa-hash-", "#");
                     compiledContent = compiledContent.replaceAll("mesa-at-", "@");
                 }
@@ -211,4 +210,29 @@ function insertIntoHtml(html, contentToInsert) {
         return replaced;
     }
     return `${contentToInsert}\n${html}`;
+}
+const replacements = [
+    { replace: /(?<!\s)<!DOCTYPE html>/g, with: "<doctype-mesa-replaced></doctype-mesa-replaced>", original: "<!DOCTYPE html>" },
+    { replace: /(?<!\s)<html/g, with: "<mesa-replaced-html", original: "<html" },
+    { replace: /(?<!\s)<\/html/g, with: "<mesa-replaced-html-close", original: "</html" },
+    { replace: /(?<!\s)<head/g, with: "<mesa-replaced-head", original: "<head" },
+    { replace: /(?<!\s)<\/head/g, with: "<mesa-replaced-head-close", original: "</head" },
+    { replace: /(?<!\s)<body/g, with: "<mesa-replaced-body", original: "<body" },
+    { replace: /(?<!\s)<\/body/g, with: "<mesa-replaced-body-close", original: "</body" },
+];
+function htmlEncode(code) {
+    if (!code.includes("<html"))
+        return code;
+    replacements.forEach(x => {
+        code = code.replace(x.replace, x.with);
+    });
+    return code;
+}
+function htmlDecode(code) {
+    if (!code.includes("mesa-replaced"))
+        return code;
+    replacements.forEach(x => {
+        code = code.replace(x.with, x.original);
+    });
+    return code;
 }

@@ -15,7 +15,7 @@ function updateLinks(html: string, updatePath: (href: string) => string): string
     const $ = cheerio.load(html, null, html.includes("<!DOCTYPE"));
     $('link').each((_, element) => {
         const href = $(element).attr('href');
-        if (href) {
+        if (href && href.startsWith(".")) {
             const updatedHref = updatePath(href);
             $(element).attr('href', updatedHref);
         }
