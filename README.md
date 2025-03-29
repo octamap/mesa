@@ -1,6 +1,9 @@
 # 🚀 **Mesa – Build-Time HTML Components**  
 **@octamap/mesa**  
 
+## Status update - March 29, 2025 
+Lots of improvements and changes are coming soon!! We are working on integrating a quite large feature. The goal is to release version 2.0.0 beta on April 30
+
 ---
 
 Mesa is a **build-time HTML component engine** that allows you to write reusable, declarative HTML components with scoped CSS and dynamic attributes — **without requiring runtime JavaScript to render them**.  
